@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="cgengine::allocators::string&lt;*&gt;">
+    <DisplayString Condition="((char*)&amp;m_data)[15] &lt; 0">{(char*)this,[-((char*)&amp;m_data)[15]]s}</DisplayString>
+    <DisplayString Condition="((char*)&amp;m_data)[15] &gt;= 0">{(char*)this + *((int64_t*)this),[m_data._[3]]s}</DisplayString>
+    <Expand>
+      <Item Condition="((char*)&amp;m_data)[15] &lt; 0" Name="[str]">(char*)this,[-((char*)&amp;m_data)[15]]s</Item>
+      <Item Condition="((char*)&amp;m_data)[15] &gt;= 0" Name="[str]">(char*)this + *((int64_t*)this),[m_data._[3]]s</Item>
+      
+      <Item Condition="((char*)&amp;m_data)[15] &lt; 0" Name="[length]">-((char*)&amp;m_data)[15]</Item>
+      <Item Condition="((char*)&amp;m_data)[15] &gt;= 0" Name="[length]">m_data._[3]</Item>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::allocators::binary&lt;*&gt;">
+    <DisplayString Condition="((char*)&amp;m_data)[15] &lt; 0">{(char*)this,[-((char*)&amp;m_data)[15]]s}</DisplayString>
+    <DisplayString Condition="((char*)&amp;m_data)[15] &gt;= 0">{(char*)this + *((int64_t*)this),[m_data._[3]]s}</DisplayString>
+    <Expand>
+      <Item Condition="((char*)&amp;m_data)[15] &lt; 0" Name="[data]">(char*)this,[-((char*)&amp;m_data)[15]]h</Item>
+      <Item Condition="((char*)&amp;m_data)[15] &gt;= 0" Name="[data]">(char*)this + *((int64_t*)this),[m_data._[3]]h</Item>
+
+      <Item Condition="((char*)&amp;m_data)[15] &lt; 0" Name="[length]">-((char*)&amp;m_data)[15]</Item>
+      <Item Condition="((char*)&amp;m_data)[15] &gt;= 0" Name="[length]">m_data._[3]</Item>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::allocators::buffer_allocator::buffer_swapper">
+    <Expand>
+      <ExpandedItem>m_new</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::allocators::forward::scope_temporary">
+    <Expand>
+      <ExpandedItem>m_new</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::allocators::forward::local_temporary">
+    <Expand>
+      <ExpandedItem>m_new</ExpandedItem>
+    </Expand>
+  </Type>
+  
+  <Type Name="cgengine::allocators::buffer_allocator">
+    <DisplayString>{{size={m_allocable_size}}}</DisplayString>
+    <Expand>
+      <Item Name="allocable">m_allocable_size</Item>
+      <Item Name="meta">
+        *((cgengine::allocators::buffer_allocator::meta*)(m_pallocable - sizeof(cgengine::allocators::buffer_allocator::meta)))
+      </Item>
+      <Item Name="const">m_const</Item>
+      <Item Name="allocs">m_allocations</Item>
+      <Item Name="deallocs">m_deallocations</Item>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::allocators::forward_allocator">
+    <DisplayString>{{size={m_buffer.size.m_value}}}</DisplayString>
+    <Expand>
+      <Item Name="reserved">m_buffer.size.m_value</Item>
+      <Item Name="consumed">((meta*)m_buffer.ptr.m_p)->position</Item>
+      <Item Name="freed">((meta*)m_buffer.ptr.m_p)->freed</Item>
+      <Item Name="in-use">((meta*)m_buffer.ptr.m_p)->position - ((meta*)m_buffer.ptr.m_p)->freed</Item>
+      <Item Name="fill">((meta*)m_buffer.ptr.m_p)->position / (double)m_buffer.size.m_value</Item>
+      <Item Name="dead">((meta*)m_buffer.ptr.m_p)->freed / (double)((meta*)m_buffer.ptr.m_p)->position</Item>
+      <Item Name="base-address">((meta*)m_buffer.ptr.m_p)->pbase</Item>
+      <Synthetic Name="----------">
+        <DisplayString>----------</DisplayString>
+      </Synthetic>
+      <Item Name="defrag">m_defragrebase</Item>
+      <Item Name="const">m_const</Item>
+      <Item Name="defragging">m_defragging</Item>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::file::vector&lt;*,*&gt;">
+    <DisplayString>{{size={m_size}}}</DisplayString>
+    <Expand>
+      <Item Name="[size]">m_size</Item>
+      <Item Name="[capacity]">m_capacity</Item>
+      <ArrayItems>
+        <Size>m_size</Size>
+        <ValuePointer>($T1*)(((char*)&amp;m_p) + m_p.offset)</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::ref&lt;*,*&gt;">
+    <DisplayString>{*m_ptr}</DisplayString>
+    <Expand>
+      <ExpandedItem>*m_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::error">
+    <DisplayString Condition="m_info.m_ptr == nullptr">success</DisplayString>
+    <DisplayString Condition="m_info.m_ptr != nullptr">error</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="m_info.m_ptr != nullptr">
+         m_info
+      </ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::optional&lt;*&gt;">
+    <DisplayString Condition="m_result.m_info.m_ptr == nullptr">{m_value}</DisplayString>
+    <DisplayString Condition="m_result.m_info.m_ptr != nullptr">{m_result}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="m_result.m_info.m_ptr == nullptr">
+        m_value
+      </ExpandedItem>
+      <ExpandedItem Condition="m_result.m_info.m_ptr != nullptr">
+        m_result
+      </ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::delayed_construct&lt;*&gt;">
+    <DisplayString Condition="constructed">{*($T1*)_}</DisplayString>
+    <DisplayString Condition="!constructed">&lt;not constructed&gt;</DisplayString>
+    <Expand>
+      <ExpandedItem>
+        *($T1*)_
+      </ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::meta::reference&lt;*&gt;">
+    <DisplayString>{m_value}</DisplayString>
+    <Expand>
+    </Expand>
+  </Type>
+
+  <Type Name="cgengine::file::page_manager::page_data">
+    <DisplayString Condition="!m_anonymous">group {((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))[-1] - 1} ({*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))} pages)</DisplayString>
+    <DisplayString Condition="m_anonymous">anon, size={m_buffer.group_length}</DisplayString>
+    <Expand>
+      <Item Condition="!m_anonymous" Name="id">((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))[-1] - 1</Item>
+      <Item Condition="!m_anonymous" Name="page-count">*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))</Item>
+      <Item Condition="!m_anonymous" Name="reserved">*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t))) * page_size</Item>
+      <Item Condition="!m_anonymous" Name="overhead">*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t))) * sizeof(pageid_t) + sizeof(uint32_t)</Item>
+      <Synthetic Condition="!m_anonymous" Name="pages">
+        <DisplayString>{{size={*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))}}}</DisplayString>
+        <Expand>
+          <CustomListItems>
+            <Variable Name="count" InitialValue="*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))"/>
+            <Variable Name="index" InitialValue="0"/>
+            <Size>count</Size>
+
+            <Loop>
+              <Break Condition="index == count" />
+              <Item>
+                ((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t)))[-index] - 1
+              </Item>
+              <Exec>++index</Exec>
+            </Loop>
+
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+      <Item Condition="!m_anonymous" Name="available">
+        *((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t))) * page_size -
+        (*((pageid_t*)((uint8_t*)m_buffer.group_base + m_buffer.group_length - sizeof(uint32_t))) * sizeof(pageid_t) + sizeof(uint32_t))
+      </Item>
+      <Synthetic Condition="!m_anonymous" Name="----------">
+        <DisplayString>----------</DisplayString>
+      </Synthetic>
+      <Item Condition="!m_anonymous" Name="dirty">m_dirty</Item>
+      <Item Condition="!m_anonymous" Name="ptr">m_buffer.group_base</Item>
+      <Synthetic Condition="!m_anonymous" Name="----------">
+        <DisplayString>----------</DisplayString>
+      </Synthetic>
+      <Item Condition="!m_anonymous" Name="buffer">m_buffer</Item>
+      <ExpandedItem Condition="m_anonymous">m_buffer</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::file::page_manager::page_group">
+    <DisplayString Condition="m_data.m_ptr != nullptr &amp;&amp; !m_data.m_ptr->m_anonymous">group {((pageid_t*)((uint8_t*)m_data.m_ptr->m_buffer.group_base + m_data.m_ptr->m_buffer.group_length - sizeof(uint32_t)))[-1] - 1} ({*((pageid_t*)((uint8_t*)m_data.m_ptr->m_buffer.group_base + m_data.m_ptr->m_buffer.group_length - sizeof(uint32_t)))} pages)</DisplayString>
+    <DisplayString Condition="m_data.m_ptr != nullptr &amp;&amp; m_data.m_ptr->m_anonymous">anon, size={m_data.m_ptr->m_buffer.group_length}</DisplayString>
+    <DisplayString Condition="m_data.m_ptr == nullptr">null (id={m_id})</DisplayString>
+    <Expand>
+      <ExpandedItem>m_data</ExpandedItem>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::umap&lt;*,*,*,*,*&gt;">
+    <DisplayString>{{size={m_size - m_dead}}}</DisplayString>
+    <Expand>
+      <Item Name="size">m_size - m_dead</Item>
+      <Item Name="capacity">m_capacity</Item>
+      <Item Name="fill">(m_size - m_dead) / (double)m_capacity</Item>
+      <Item Name="dead">m_dead</Item>
+      
+      <CustomListItems MaxItemsPerView="10">
+        <Variable Name="iter" InitialValue="m_b"/>
+        <Variable Name="end" InitialValue="m_e"/>
+
+        <Size>m_size - m_dead</Size>
+        <Loop>
+          <Break Condition="iter == end" />
+          <Item Condition="iter->second != c_novalue &amp;&amp; (iter->second &amp; 0x80000000) == 0">
+            iter->first
+          </Item>
+          <Exec>++iter</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::umap&lt;*,*,*,*,*&gt;::iterator">
+    <DisplayString>{m_p->first}</DisplayString>
+    <Expand>
+      <ExpandedItem>
+        m_p->first
+      </ExpandedItem>
+    </Expand>
+  </Type>
+
+
+  <Type Name="cgengine::uset&lt;*,*,*,*&gt;">
+    <DisplayString>{{size={m_size - m_dead}}}</DisplayString>
+    <Expand>
+      <Item Name="size">m_size - m_dead</Item>
+      <Item Name="capacity">m_capacity</Item>
+      <Item Name="fill">(m_size - m_dead) / (double)m_capacity</Item>
+      <Item Name="dead">m_dead</Item>
+
+      <CustomListItems MaxItemsPerView="10">
+        <Variable Name="iter" InitialValue="m_b"/>
+        <Variable Name="end" InitialValue="m_e"/>
+
+        <Size>m_size - m_dead</Size>
+        <Loop>
+          <Break Condition="iter == end" />
+          <Item Condition="iter->second != c_novalue &amp;&amp; (iter->second &amp; 0x80000000) == 0">
+            iter->first
+          </Item>
+          <Exec>++iter</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::uset&lt;*,*,*,*&gt;::iterator">
+    <DisplayString>{m_p->first}</DisplayString>
+    <Expand>
+      <ExpandedItem>
+        m_p->first
+      </ExpandedItem>
+    </Expand>
+  </Type>
+
+
+  <Type Name="cgengine::buffer&lt;char, *&gt;">
+    <DisplayString>{ptr.m_p, [size.m_value]s}</DisplayString>
+    <Expand>
+      <Item Name="[size]">size.m_value</Item>
+    </Expand>
+  </Type>
+  <Type Name="cgengine::buffer&lt;*, *&gt;">
+    <DisplayString>{ptr.m_p, [size.m_value]}</DisplayString>
+    <Expand>
+      <Item Name="[type]">"$T1"</Item>
+      <Item Name="[size]">size.m_value</Item>
+      <ArrayItems>
+        <Size>size.m_value</Size>
+        <ValuePointer>ptr.m_p</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  
+  
+  
+  <Type Name="cgengine::json::token">
+    <DisplayString Condition="m_value_type.value == value_type::string">json:{str}</DisplayString>
+    <DisplayString Condition="m_value_type.value == value_type::integer">json:{number}</DisplayString>
+    <DisplayString Condition="m_value_type.value == value_type::boolean">json:{boolean}</DisplayString>
+    <DisplayString Condition="m_value_type.value == value_type::floating">json:{floating}</DisplayString>
+    <DisplayString Condition="m_value_type.value == value_type::pointer">json:{pointer}</DisplayString>
+    <DisplayString Condition="m_value_type.value == value_type::object">json:object:size={pobject->m_size - pobject->m_dead}</DisplayString>
+    <DisplayString Condition="m_value_type.value == value_type::array">json:array:size={parray->_Mypair._Myval2._Mylast - parray->_Mypair._Myval2._Myfirst}</DisplayString>
+    <DisplayString>json-token</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="m_value_type.value == value_type::string">str</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::integer">number</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::boolean">boolean</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::floating">floating</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::pointer">pointer</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::object">*pobject</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::array">*parray</ExpandedItem>
+      <ExpandedItem Condition="m_value_type.value == value_type::reference">internalref</ExpandedItem>
+    </Expand>
+  </Type>
+
+
+
+
+
+  <Type Name="glm::vec&lt;2, int, 0&gt;">
+    <DisplayString>&lt;{x}, {y}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>2</Size>
+        <ValuePointer>(int*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="glm::vec&lt;4, int, 0&gt;">
+    <DisplayString>&lt;{x}, {y}, {z}, {w}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>4</Size>
+        <ValuePointer>(int*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="glm::vec&lt;3, int, 0&gt;">
+    <DisplayString>&lt;{x}, {y}, {z}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>3</Size>
+        <ValuePointer>(int*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  
+  
+  <Type Name="glm::vec&lt;2, unsigned int, 0&gt;">
+    <DisplayString>&lt;{x}, {y}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>2</Size>
+        <ValuePointer>(int*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="glm::vec&lt;3, unsigned int, 0&gt;">
+    <DisplayString>&lt;{x}, {y}, {z}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>3</Size>
+        <ValuePointer>(int*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="glm::vec&lt;4, unsigned int, 0&gt;">
+    <DisplayString>&lt;{x}, {y}, {z}, {w}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>4</Size>
+        <ValuePointer>(int*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  
+  
+  <Type Name="glm::vec&lt;2, float, 0&gt;">
+    <DisplayString>&lt;{x}, {y}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>2</Size>
+        <ValuePointer>(float*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="glm::vec&lt;3, float, 0&gt;">
+    <DisplayString>&lt;{x}, {y}, {z}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>3</Size>
+        <ValuePointer>(float*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="glm::vec&lt;4, float, 0&gt;">
+    <DisplayString>&lt;{x}, {y}, {z}, {w}&gt;</DisplayString>
+    <Expand>
+      <ArrayItems>
+        <Size>4</Size>
+        <ValuePointer>(float*)this</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+
+
+</AutoVisualizer>
