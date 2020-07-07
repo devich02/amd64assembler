@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="cgengine::modrm_t">
+    <Expand>
+      <Item Name="mod">mod,b</Item>
+      <Item Name="reg">reg,b</Item>
+      <Item Name="r/m">rm,b</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="cgengine::sib_t">
+    <Expand>
+      <Item Name="base">base,b</Item>
+      <Item Name="index">index,b</Item>
+      <Item Name="scale">scale</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="cgengine::rex_t">
+    <Expand>
+      <Item Name="operand">w == 1 ? 64 : 32</Item>
+      <Item Name="reg-ex">r == 1</Item>
+      <Item Name="rm-ex">b == 1</Item>
+      <Item Name="index-ex">x == 1</Item>
+    </Expand>
+  </Type>
+
+
+  <Type Name="cgengine::instruction_t">
+    <Expand>
+      <Item Name="opcode">opcode, x</Item>
+      <Item Name="rex">rex</Item>
+      <Item Name="modrm">modrm</Item>
+      <Item Name="sib">sib</Item>
+      <Item Name="sib-displacement">sib_displacement</Item>
+      <Item Name="immediate" Condition="has_immediate == true">immediate</Item>
+    </Expand>
+  </Type>
+
+
+
+
+
+
+</AutoVisualizer>

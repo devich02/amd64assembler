@@ -454,18 +454,22 @@ namespace cgengine
             return s("<invalid>");
         }
 
+        /// <summary>
+        /// Size in bits
+        /// </summary>
+        /// <returns>The size of the register in bits</returns>
         uint32_t size() const noexcept
         {
             switch (value)
             {
-            case R8B: case R9B: case R10B: case R11B: case R12B: case R13B: case R14B: case R15B: return 1;
-            case R8W: case R9W: case R10W: case R11W: case R12W: case R13W: case R14W: case R15W: return 2;
-            case R8D: case R9D: case R10D: case R11D: case R12D: case R13D: case R14D: case R15D: return 4;
-            case R8: case R9: case R10: case R11: case R12: case R13: case R14: case R15: return 8;
+            case R8B: case R9B: case R10B: case R11B: case R12B: case R13B: case R14B: case R15B: return 8;
+            case R8W: case R9W: case R10W: case R11W: case R12W: case R13W: case R14W: case R15W: return 16;
+            case R8D: case R9D: case R10D: case R11D: case R12D: case R13D: case R14D: case R15D: return 32;
+            case R8: case R9: case R10: case R11: case R12: case R13: case R14: case R15: return 64;
 
-            case AX: case BX: case CX: case DX: case DI: case SI: case BP: case SP: case SS: return 2;
-            case EAX: case EBX: case ECX: case EDX: case EDI: case ESI: case EBP: case ESP: return 4;
-            case RAX: case RBX: case RCX: case RDX: case RDI: case RSI: case RBP: case RSP: return 8;
+            case AX: case BX: case CX: case DX: case DI: case SI: case BP: case SP: case SS: return 16;
+            case EAX: case EBX: case ECX: case EDX: case EDI: case ESI: case EBP: case ESP: return 32;
+            case RAX: case RBX: case RCX: case RDX: case RDI: case RSI: case RBP: case RSP: return 64;
             }
             return 0;
         }
@@ -592,6 +596,7 @@ namespace cgengine
             default: __assert(false);
             }
         }
+        register_code_t(int v) : value((vt)v) {}
         __enum(register_code_t);
     };
 
@@ -632,23 +637,17 @@ namespace cgengine
     };
     struct modrm_t
     {
-        uint8_t _rm : 3;
-        uint8_t _reg : 3;
-        uint8_t  mod : 2;
-        uint8_t reg(rex_t rex) noexcept
-        {
-            return (rex.r << 4) | _reg;
-        }
-        uint8_t rm(rex_t rex) noexcept
-        {
-            return (rex.b << 4) | _rm;
-        }
+        uint8_t rm : 3;
+        uint8_t reg : 3;
+        uint8_t mod : 2;
 
         struct mode_t
         {
             enum vt
             {
                 register_direct = 0b11,
+
+                register_indirect = 0b00,
                 indirect_disp32 = 0b00,
                 indirect_rbp_disp8 = 0b01,
                 indirect_rbp_disp32 = 0b10
@@ -667,190 +666,17 @@ namespace cgengine
                 return s("<invalid>");
             }
         };
-
-        static modrm_t make(register_t dst) noexcept
-        {
-            switch (dst)
-            {
-            case register_t::RAX:
-            case register_t::EAX:
-                return { register_code_t::AX, 0, mode_t::register_direct };
-                break;
-            case register_t::RCX:
-            case register_t::ECX:
-                return { register_code_t::CX, 0, mode_t::register_direct };
-                break;
-            case register_t::RDX:
-            case register_t::EDX:
-                return { register_code_t::DX, 0, mode_t::register_direct };
-                break;
-            case register_t::EBX:
-            case register_t::RBX:
-                return { register_code_t::BX, 0, mode_t::register_direct };
-                break;
-
-            case register_t::ESP:
-            case register_t::RSP:
-                return { register_code_t::SP, 0, mode_t::register_direct };
-                break;
-            case register_t::EBP:
-            case register_t::RBP:
-                return { register_code_t::BP, 0, mode_t::register_direct };
-                break;
-            case register_t::ESI:
-            case register_t::RSI:
-                return { register_code_t::SI, 0, mode_t::register_direct };
-                break;
-            case register_t::EDI:
-            case register_t::RDI:
-                return { register_code_t::DI, 0, mode_t::register_direct };
-                break;
-            }
-
-            __assert(false);
-            return { 0,0,0 };
-        }
-
-        static modrm_t make(mode_t mode, register_t reg, register_t regmem) noexcept
-        {
-            modrm_t ret;
-            ret.mod = mode;
-
-            switch (reg)
-            {
-            case register_t::RAX:
-            case register_t::EAX:
-                ret._reg = register_code_t::AX;
-                break;
-            case register_t::RCX:
-            case register_t::ECX:
-                ret._reg = register_code_t::CX;
-                break;
-            case register_t::RDX:
-            case register_t::EDX:
-                ret._reg = register_code_t::DX;
-                break;
-            case register_t::EBX:
-            case register_t::RBX:
-                ret._reg = register_code_t::BX;
-                break;
-
-            case register_t::ESP:
-            case register_t::RSP:
-                ret._reg = register_code_t::SP;
-                break;
-            case register_t::EBP:
-            case register_t::RBP:
-                ret._reg = register_code_t::BP;
-                break;
-            case register_t::ESI:
-            case register_t::RSI:
-                ret._reg = register_code_t::SI;
-                break;
-            case register_t::EDI:
-            case register_t::RDI:
-                ret._reg = register_code_t::DI;
-                break;
-            }
-
-            switch (regmem)
-            {
-            case register_t::RAX:
-            case register_t::EAX:
-                ret._rm = register_code_t::AX;
-                break;
-            case register_t::RCX:
-            case register_t::ECX:
-                ret._rm = register_code_t::CX;
-                break;
-            case register_t::RDX:
-            case register_t::EDX:
-                ret._rm = register_code_t::DX;
-                break;
-            case register_t::EBX:
-            case register_t::RBX:
-                ret._rm = register_code_t::BX;
-                break;
-
-            case register_t::ESP:
-            case register_t::RSP:
-                ret._rm = register_code_t::SP;
-                break;
-            case register_t::EBP:
-            case register_t::RBP:
-                ret._rm = register_code_t::BP;
-                break;
-            case register_t::ESI:
-            case register_t::RSI:
-                ret._rm = register_code_t::SI;
-                break;
-            case register_t::EDI:
-            case register_t::RDI:
-                ret._rm = register_code_t::DI;
-                break;
-            }
-
-            return ret;
-        }
     };
     struct sib_t
     {
-        uint8_t _base : 3;
-        uint8_t _index : 3;
-        uint8_t _scale : 2;
-        uint8_t index(rex_t rex) const noexcept
-        {
-            return (rex.x << 4) | _index;
-        }
-        uint8_t base(rex_t rex) const noexcept
-        {
-            return (rex.b << 4) | _base;
-        }
-        uint8_t scale() const noexcept
-        {
-            return 1 << _scale;
-        }
-
-        register_t index_register() const noexcept
-        {
-            switch (_index)
-            {
-            case 0b000: return register_t::RAX;
-            case 0b001: return register_t::RCX;
-            case 0b010: return register_t::RDX;
-            case 0b011: return register_t::RBX;
-            case 0b100: return register_t::none;
-            case 0b101: return register_t::RBP;
-            case 0b110: return register_t::RSI;
-            case 0b111: return register_t::RDI;
-            }
-            return register_t::invalid;
-        }
-
-        //Table 1-13. SIB.base encodings for ModRM.r/m = 100b
-        register_t base_register(modrm_t modrm) const noexcept
-        {
-            switch (_index)
-            {
-            case 0b000: return register_t::RAX;
-            case 0b001: return register_t::RCX;
-            case 0b010: return register_t::RDX;
-            case 0b011: return register_t::RBX;
-            case 0b100: return register_t::RSP;
-                // if mode == 00, then the base is just the 32 bit displacement in the opcode
-                // if mode == 01, then the base is [rBP] + the 8  bit displacement in the opcode
-                // if mode == 10, then the base is [rBP] + the 32 bit displacement in the opcode
-            case 0b101: return modrm.mod == 0 ? register_t::none : register_t::RBP;
-            case 0b110: return register_t::RSI;
-            case 0b111: return register_t::RDI;
-            }
-            return register_t::invalid;
-        }
+        uint8_t base  : 3 = 0;
+        uint8_t index : 3 = 0;
+        uint8_t scale : 2 = 0;
     };
 #pragma pack(pop)
 
 
-    rex_t push_register_op(buffervec<uint8_t>& assembly, register_t reg, uint8_t opcode) noexcept
+    rex_t pushregister_op(buffervec<uint8_t>& assembly, register_t reg, uint8_t opcode) noexcept
     {
         rex_t rex = rex_t::make(reg);
         if (rex.flags() != 0) assembly.push(rex);
@@ -869,18 +695,18 @@ namespace cgengine
         assembly.push(opcode);
 
         modrm_t modrm;
-        modrm._reg = 0;
+        modrm.reg = 0;
         modrm.mod = 0;
-        modrm._rm = register_code_t(indirect_target);
+        modrm.rm = register_code_t(indirect_target);
 
         assembly.push(modrm);
 
         if (indirect_target == register_t::SP || indirect_target == register_t::ESP || indirect_target == register_t::RSP)
         {
             sib_t sib;
-            sib._base = 0b100;
-            sib._index = 0b100;
-            sib._scale = 0;
+            sib.base = 0b100;
+            sib.index = 0b100;
+            sib.scale = 0;
 
             assembly.push(sib);
         }
@@ -897,103 +723,282 @@ namespace cgengine
         return operand_size;
     }
 
+
+    struct argtype_t
+    {
+        enum vt
+        {
+            EAX      = 0b10000000,
+            RAX      = EAX + 1,
+            reg32    = EAX + 2,
+            reg64    = EAX + 3,
+            regmem32 = EAX + 4,
+            regmem64 = EAX + 5,
+            imm8     = 0b00010000,
+            imm16    = imm8 + 1,
+            imm32    = imm8 + 2,
+            imm64    = imm8 + 3,
+            unused
+        } value;
+
+        __enum(argtype_t);
+
+        bool valid() const noexcept
+        {
+            switch (value)
+            {
+            case EAX:
+            case RAX:
+            case regmem32:
+            case regmem64:
+            case reg32:
+            case reg64:
+            case imm8:
+            case imm16:
+            case imm32:
+            case imm64:
+                return true;
+            }
+            return false;
+        }
+
+        _executeinline argtype_t& operator++() noexcept
+        {
+            value = (vt)(((int32_t)value) + 1);
+            return *this;
+        }
+
+        _executeinline bool is_ax() const noexcept
+        {
+            return value == EAX || value == RAX;
+        }
+        _executeinline bool is_modrm() const noexcept
+        {
+            return value >= reg32 && value <= regmem64;
+        }
+        _executeinline bool is_immediate() const noexcept
+        {
+            return (((int32_t)value) & imm8) != 0;
+        }
+    };
+
+    struct signature_t
+    {
+        char      label[16] = { 0 };
+        argtype_t arg1 = argtype_t::unused;
+        argtype_t arg2 = argtype_t::unused;
+
+        uint32_t operand_size() const noexcept
+        {
+            return (
+                arg1 == argtype_t::RAX
+                || arg2 == argtype_t::RAX
+                || arg1 == argtype_t::regmem64
+                || arg2 == argtype_t::regmem64
+                || arg1 == argtype_t::reg64
+                || arg2 == argtype_t::reg64
+                || arg1 == argtype_t::imm64
+                || arg2 == argtype_t::imm64
+                ) ? 64 : 32;
+        }
+
+        _executeinline bool operator==(const signature_t& other) const noexcept
+        {
+            return arg1 == other.arg1
+                && arg2 == other.arg2
+                && buffer<char>::from_ptr(label, 16) == buffer<char>::from_ptr(other.label, 16);
+        }
+    };
+
+    struct argument_t
+    {
+        // register direct
+        register_t reg = register_t::none;
+
+        // sib 
+        modrm_t::mode_t mode;
+        register_t base = register_t::RBP,  // These both default to the "unused" state for these flags
+                   index = register_t::RSP; // 
+        uint32_t   scale = 0;
+        uint32_t   disp  = 0;
+
+        // immediates
+        uint64_t imm;
+
+        _executeinline bool is_reg_ex() const noexcept
+        {
+            return reg >= register_t::R8B && reg <= register_t::R15;
+        }
+        _executeinline bool is_index_ex() const noexcept
+        {
+            return mode != modrm_t::mode_t::register_direct && index >= register_t::R8B && index <= register_t::R15;
+        }
+        _executeinline bool is_base_ex() const noexcept
+        {
+            return mode != modrm_t::mode_t::register_direct && base >= register_t::R8B && base <= register_t::R15;
+        }
+    };
+
+
+    struct opcode_flags_t
+    {
+        enum vt : uint8_t
+        {
+            none = 0,
+            register_adjusted = 0b00000001
+        } value;
+        __enum(opcode_flags_t);
+        _executeinline bool has(vt v) noexcept
+        {
+            return (value & v) != 0;
+        }
+    };
+    struct opcode_t
+    {
+        uint8_t code;
+        string  description;
+        opcode_flags_t flags = opcode_flags_t::none;
+    };
+
+
     //
     // [legacy-prefix <= 5x] [rex-prefix] [opcode-map escape] opcode [modrm] [sib] [imm]
     //
     struct instruction_t
     {
         // placeholder: legacy-prefix
-        rex_t    rex;
-        uint8_t  opcode;
-        modrm_t  modrm;
-        bool     has_modrm = false;
-        sib_t    sib;
-        uint64_t immediate;
-        bool     has_immediate = false;
+        opcode_t   opcode;
+        argument_t arg1, arg2;
+        signature_t signature;
+
+    private:
+        bool apply_modrmsib(argtype_t type, argument_t arg, modrm_t& target_modrm, sib_t& target_sib)
+        {
+            if (!type.is_modrm()) return false;
+
+            if (type == argtype_t::reg32 || type == argtype_t::reg64)
+            {
+                target_modrm.reg = register_code_t(arg.reg);
+                __assert(arg.mode == modrm_t::mode_t::register_direct);
+                return false;
+            }
+            else if (type == argtype_t::regmem32 || type == argtype_t::regmem64)
+            {
+                target_modrm.mod = arg.mode;
+                target_modrm.rm = register_code_t(arg.reg);
+
+                // sib indicator
+                if (target_modrm.mod != modrm_t::mode_t::register_direct
+                    && target_modrm.rm == 0b100)
+                {
+                    target_sib.base = register_code_t(arg.base);
+                    target_sib.index = register_code_t(arg.index);
+                    target_sib.scale = arg.scale;
+                    return true;
+                }
+                return false;
+            } 
+            __assert(false);
+            return false;
+        }
+    public:
 
         error emit(buffervec<uint8_t>& assembly) noexcept
         {
+            rex_t rex{
+                .b = (uint8_t)((signature.arg1.is_modrm() && arg1.is_reg_ex())   || (signature.arg2.is_modrm() && arg2.is_reg_ex())   ? 1 : 0),
+                .x = (uint8_t)((signature.arg1.is_modrm() && arg1.is_index_ex()) || (signature.arg2.is_modrm() && arg2.is_index_ex()) ? 1 : 0),
+                .r = (uint8_t)((signature.arg1.is_modrm() && arg1.is_base_ex())  || (signature.arg2.is_modrm() && arg2.is_base_ex())  ? 1 : 0),
+                .w = (uint8_t)((signature.operand_size() == 32 ? 0 : 1))
+            };
             if (rex.flags() != 0) if (!assembly.push(rex)) return __error(errors::out_of_memory);
-            if (!assembly.push(opcode)) return __error(errors::out_of_memory);
-            if (has_modrm)
+
+            uint8_t code = opcode.code + (opcode.flags.has(opcode_flags_t::register_adjusted) ? (uint8_t)register_code_t(arg1.reg) : 0);
+            if (!assembly.push(code)) return __error(errors::out_of_memory);
+
+            if ((!opcode.flags.has(opcode_flags_t::register_adjusted) && signature.arg1.is_modrm()) || signature.arg2.is_modrm())
             {
+                modrm_t modrm;
+                sib_t   sib;
+                
+                bool needs_sib = 
+                        apply_modrmsib(signature.arg1, arg1, modrm, sib) 
+                        || apply_modrmsib(signature.arg2, arg2, modrm, sib);
+
                 if (!assembly.push(modrm)) return __error(errors::out_of_memory);
-                if (modrm._rm == 0b100 && modrm.mod != 0b11)
-                {
-                    if (!assembly.push(sib)) return __error(errors::out_of_memory);
-                }
+                if (needs_sib && !assembly.push(sib)) return __error(errors::out_of_memory);
             }
+
+            
+            if (signature.arg1.is_immediate())
+            { 
+                if (signature.arg1 == argtype_t::imm8 && !assembly.push(*((uint8_t*)&arg1.imm))) return __error(errors::out_of_memory);
+                else if (signature.arg1 == argtype_t::imm16 && !assembly.push(*((uint16_t*)&arg1.imm))) return __error(errors::out_of_memory);
+                else if (signature.arg1 == argtype_t::imm32 && !assembly.push(*((uint32_t*)&arg1.imm))) return __error(errors::out_of_memory);
+                else if (signature.arg1 == argtype_t::imm64 && !assembly.push(arg1.imm)) return __error(errors::out_of_memory);
+            }
+            else if (signature.arg2.is_immediate())
+            {
+                if (signature.arg2 == argtype_t::imm8 && !assembly.push(*((uint8_t*)&arg2.imm))) return __error(errors::out_of_memory);
+                else if (signature.arg2 == argtype_t::imm16 && !assembly.push(*((uint16_t*)&arg2.imm))) return __error(errors::out_of_memory);
+                else if (signature.arg2 == argtype_t::imm32 && !assembly.push(*((uint32_t*)&arg2.imm))) return __error(errors::out_of_memory);
+                else if (signature.arg2 == argtype_t::imm64 && !assembly.push(arg2.imm)) return __error(errors::out_of_memory);
+            }
+
             return error();
         }
-    };
-
-    struct argtype_t
-    {
-        enum vt
-        {
-            EAX,
-            RAX,
-            regmem32,
-            regmem64,
-            reg32,
-            reg64,
-            imm8,
-            imm16,
-            imm32,
-            imm64,
-            unused
-        } value;
-
-        __enum(argtype_t);
-    };
-
-    struct mnemonic_t
-    {
-        char      label[16]    = { 0 };
-        uint8_t   operand_size = 32;
-        argtype_t arg1         = argtype_t::unused;
-        argtype_t arg2         = argtype_t::unused;
-
-        _executeinline bool operator==(const mnemonic_t& other) const noexcept
-        {
-            return operand_size == other.operand_size
-                && arg1 == other.arg1
-                && arg2 == other.arg2
-                && buffer<char>::from_ptr(label, 16) == buffer<char>::from_ptr(other.label, 16);
-        }
-    };
-
-    struct opcode_t
-    {
-        uint8_t code;
-        string  description;
     };
 
     namespace errors
     {
         namespace assembler
         {
-            _inline error InvalidInstruction(error_scope::cgengine, 120000, "InvalidInstruction");
-            _inline error InvalidArgument(error_scope::cgengine, 120001, "InvalidArgument");
-            _inline error UnexpectedEndOfStatement(error_scope::cgengine, 120002, "UnexpectedEndOfStatement");
+            _inline error invalid_instruction(error_scope::cgengine, 120000, "InvalidInstruction");
+            _inline error invalid_argument(error_scope::cgengine, 120001, "InvalidArgument");
+            _inline error unexpected_end_of_statment(error_scope::cgengine, 120002, "UnexpectedEndOfStatement");
+            _inline error invalid_indirect_address_scheme(error_scope::cgengine, 120003, "InvalidIndirectAddressScheme");
+            _inline error instruction_overload_not_found(error_scope::cgengine, 120003, "InstructionOverloadNotFound");
         }
     }
 
-    umap<mnemonic_t, opcode_t, value_type_hash<mnemonic_t>> opcode_map {
-        { { "add", 32, argtype_t::EAX,      argtype_t::imm32    }, { 0x05, s("Add imm32 to EAX") } }, 
-        { { "add", 64, argtype_t::RAX,      argtype_t::imm32    }, { 0x05, s("Add sign-extended imm32 to RAX") } }, 
-                                                               
-        { { "add", 32, argtype_t::regmem32, argtype_t::imm32    }, { 0x81, s("Add imm32 to reg/mem32") } },
-        { { "add", 64, argtype_t::regmem64, argtype_t::imm32    }, { 0x81, s("Add sign-extended imm32 to reg/mem64") } },
-                                                               
-        { { "add", 32, argtype_t::regmem32, argtype_t::imm8     }, { 0x83, s("Add sign-extended imm8 to reg/mem32") } },
-        { { "add", 64, argtype_t::regmem64, argtype_t::imm8     }, { 0x83, s("Add sign-extended imm8 to reg/mem64") } },
-                                                               
-        { { "add", 32, argtype_t::regmem32, argtype_t::reg32    }, { 0x01, s("Add reg32 to reg/mem32") } },
-        { { "add", 64, argtype_t::regmem64, argtype_t::reg64    }, { 0x01, s("Add reg64 to reg/mem64") } },
+    umap<signature_t, opcode_t, value_type_hash<signature_t>> opcode_map {
+        { { "add",  argtype_t::EAX,      argtype_t::imm32    }, { 0x05, s("Add imm32 to EAX") } }, 
+        { { "add",  argtype_t::RAX,      argtype_t::imm32    }, { 0x05, s("Add sign-extended imm32 to RAX") } }, 
+                                                            
+        { { "add",  argtype_t::regmem32, argtype_t::imm32    }, { 0x81, s("Add imm32 to reg/mem32") } },
+        { { "add",  argtype_t::regmem64, argtype_t::imm32    }, { 0x81, s("Add sign-extended imm32 to reg/mem64") } },
+                                                            
+        { { "add",  argtype_t::regmem32, argtype_t::imm8     }, { 0x83, s("Add sign-extended imm8 to reg/mem32") } },
+        { { "add",  argtype_t::regmem64, argtype_t::imm8     }, { 0x83, s("Add sign-extended imm8 to reg/mem64") } },
+                                                            
+        { { "add",  argtype_t::regmem32, argtype_t::reg32    }, { 0x01, s("Add reg32 to reg/mem32") } },
+        { { "add",  argtype_t::regmem64, argtype_t::reg64    }, { 0x01, s("Add reg64 to reg/mem64") } },
+                   
+        { { "add",  argtype_t::reg32,    argtype_t::regmem32 }, { 0x03, s("Add reg/mem32 to reg32") } },
+        { { "add",  argtype_t::reg64,    argtype_t::regmem64 }, { 0x03, s("Add reg/mem64 to reg64") } },
+                   
+                   
+                   
+        { { "mov",  argtype_t::regmem32, argtype_t::reg32    }, { 0x89, s("Move the contents of a 32-bit register to a 32-bit destination register or memory operand") } },
+        { { "mov",  argtype_t::regmem64, argtype_t::reg64    }, { 0x89, s("Move the contents of a 64-bit register to a 64-bit destination register or memory operand") } },
+                   
+        { { "mov",  argtype_t::reg32,    argtype_t::regmem32 }, { 0x8B, s("Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
+        { { "mov",  argtype_t::reg64,    argtype_t::regmem64 }, { 0x8B, s("Move the contents of a 64-bit register or memory to a 64-bit destination register") } },
+                   
+        { { "mov",  argtype_t::reg32,    argtype_t::imm32    }, { 0xB8, s("Move a 32-bit immediate value into a 32-bit register"), { opcode_flags_t::register_adjusted } } },
+        { { "mov",  argtype_t::reg64,    argtype_t::imm64    }, { 0xB8, s("Move a 64-bit immediate value into a 64-bit register"), { opcode_flags_t::register_adjusted } } },
+                                                             
+        { { "mov",  argtype_t::regmem32, argtype_t::imm32    }, { 0xC7, s("Move a 32-bit immediate value into a 32-bit register or memory operand") } },
+        { { "mov",  argtype_t::regmem64, argtype_t::imm64    }, { 0xC7, s("Move a 64-bit immediate value into a 64-bit register or memory operand") } },
 
-        { { "add", 32, argtype_t::reg32,    argtype_t::regmem32 }, { 0x03, s("Add reg/mem32 to reg32") } },
-        { { "add", 64, argtype_t::reg64,    argtype_t::regmem64 }, { 0x03, s("Add reg/mem64 to reg64") } },
+
+        { { "pop",  argtype_t::regmem64, argtype_t::unused   }, { 0xFF, s("Pop the top of the stack into a 64-bit register or memory.") } },
+
+        //{ { "push", argtype_t::regmem32, argtype_t::unused   }, { 0xFF, s("Push the contents of a 32-bit register or memory operand onto the stack (No prefix for encoding this in 64-bit mode).") } },
+        { { "push", argtype_t::regmem64, argtype_t::unused   }, { 0xFF, s("Push the contents of a 64-bit register or memory operand onto the stack.") } },
+
+        { { "ret",  argtype_t::unused,   argtype_t::unused   }, { 0xC3, s("Near return to the calling procedure.") } },
+
     };
 
     bool clear_whitespace_inline(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
@@ -1010,13 +1015,15 @@ namespace cgengine
         return true;
     }
 
-    error parse_argument(mnemonic_t& mnemonic, argtype_t* parg, instruction_t& ret, nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end)
+    optional<argument_t> parse_argument(argtype_t* parg, nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end)
     {
+        argument_t ret;
+
         if (iter->value[0] == '-')
         {
             __usingif(parsed, parse::integer64(iter->value.view<uint8_t>()))
             {
-                *((int64_t*)&ret.immediate) = parsed;
+                *((int64_t*)&ret.imm) = parsed;
 
                 if (std::numeric_limits<int8_t>::lowest() <= parsed && parsed <= std::numeric_limits<int8_t>::max())
                 {
@@ -1033,56 +1040,165 @@ namespace cgengine
                 else
                 {
                     *parg = argtype_t::imm64;
-                    mnemonic.operand_size = 64;
                 }
             }
         }
         else if (iter->value[0] >= '0' && iter->value[0] <= '9')
         {
-            __checkedinto(ret.immediate, parse::uinteger64(iter->value.view<uint8_t>()));
+            __checkedinto(ret.imm, parse::uinteger64(iter->value.view<uint8_t>()));
 
-            if (std::numeric_limits<uint8_t>::lowest() <= ret.immediate && ret.immediate <= std::numeric_limits<uint8_t>::max())
+            if (std::numeric_limits<uint8_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint8_t>::max())
             {
                 *parg = argtype_t::imm8;
             }
-            else if (std::numeric_limits<uint16_t>::lowest() <= ret.immediate && ret.immediate <= std::numeric_limits<uint16_t>::max())
+            else if (std::numeric_limits<uint16_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint16_t>::max())
             {
                 *parg = argtype_t::imm16;
             }
-            else if (std::numeric_limits<uint32_t>::lowest() <= ret.immediate && ret.immediate <= std::numeric_limits<uint32_t>::max())
+            else if (std::numeric_limits<uint32_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint32_t>::max())
             {
                 *parg = argtype_t::imm32;
             }
             else
             {
                 *parg = argtype_t::imm64;
-                mnemonic.operand_size = 64;
             }
+
         }
         else if (iter->value[0] == '[')
         {
+            if (auto reg = register_t(buffer<char>::from_ptr(iter->value.ptr + 1, iter->value.size - 2)); reg != register_t::invalid)
+            {
+                ret.reg = reg;
+                ret.mode = modrm_t::mode_t::register_indirect;
+                if (reg.size() == 64)
+                {
+                    *parg = argtype_t::regmem64;
+                }
+                else
+                {
+                    *parg = argtype_t::regmem32;
+                }
+            }
+            else
+            {
+                // parse sib format
+                // [base][+index*scale]
+                static std::regex sibregex((R"___(^\[([a-zA-Z][a-zA-Z0-9]*)\]$|^\[([a-zA-Z][a-zA-Z0-9]*)\+([a-zA-Z][a-zA-Z0-9]*)\]$|^\[([a-zA-Z][a-zA-Z0-9]*)\+([0-9]*)\]$|^\[([a-zA-Z][a-zA-Z0-9]*)\*(2|4|8)\]$|^\[([a-zA-Z][a-zA-Z0-9]*)\+([a-zA-Z][a-zA-Z0-9]*)\*(2|4|8)\]$)___"), std::regex_constants::ECMAScript | std::regex_constants::optimize);
+                std::match_results<const char*> matches;
+                if (std::regex_search(iter->value.begin(), iter->value.end(), matches, sibregex))
+                {
+                    ret.scale = 0;
 
+                    if (matches[2].matched && matches[3].matched)
+                    {
+                        // [base+index]
+                        ret.base  = register_t(buffer<char>::from_ptr(matches[2].first, matches[2].second - matches[2].first));
+                        ret.index = register_t(buffer<char>::from_ptr(matches[3].first, matches[3].second - matches[3].first));
+
+                        if (ret.base == register_t::EBP || ret.base == register_t::RBP)
+                        {
+                            ret.disp = 0;
+                            ret.mode = modrm_t::mode_t::indirect_disp32;
+                        }
+                        else
+                        {
+                            ret.mode = modrm_t::mode_t::register_indirect;
+                        }
+                    }
+                    else if (matches[4].matched && matches[5].matched)
+                    {
+                        // [index*1+disp32]
+                        register_t reg = register_t(buffer<char>::from_ptr(matches[4].first, matches[4].second - matches[4].first));
+
+                        __checkedinto(ret.disp, parse::uinteger32(buffer<char>::from_ptr(matches[5].first, matches[5].second - matches[5].first)));
+
+                        if (reg == register_t::EBP || reg == register_t::RBP)
+                        {
+                            ret.base = reg;
+                            if (ret.disp <= std::numeric_limits<uint8_t>::max())
+                            {
+                                ret.mode = modrm_t::mode_t::indirect_rbp_disp8;
+                            }
+                            else
+                            {
+                                ret.mode = modrm_t::mode_t::indirect_rbp_disp32;
+                            }
+                        }
+                        else
+                        {
+                            ret.index = reg;
+                            ret.mode = modrm_t::mode_t::indirect_disp32;
+                        }
+                    }
+                    else if (matches[6].matched && matches[7].matched)
+                    {
+                        // [index*scale]
+                        ret.base = register_t::RBP;
+                        ret.disp = 0;
+                        ret.mode = modrm_t::mode_t::indirect_disp32;
+
+                        __checkedinto(ret.scale, parse::uinteger32(buffer<char>::from_ptr(matches[7].first, matches[7].second - matches[7].first)));
+                        ret.scale = (ret.scale == 1 ? 0 : ret.scale == 2 ? 1 : ret.scale == 4 ? 2 : 3);
+
+                        ret.index = register_t(buffer<char>::from_ptr(matches[6].first, matches[6].second - matches[6].first));
+                    }
+                    else if (matches[8].matched && matches[9].matched && matches[10].matched)
+                    {
+                        //[base+index*scale]
+                        ret.base  = register_t(buffer<char>::from_ptr(matches[8].first, matches[8].second - matches[8].first));
+                        ret.index = register_t(buffer<char>::from_ptr(matches[9].first, matches[9].second - matches[9].first));
+
+                        if (ret.base == register_t::EBP || ret.base == register_t::RBP)
+                        {
+                            ret.disp = 0;
+                            ret.mode = modrm_t::mode_t::indirect_disp32;
+                        }
+
+                        __checkedinto(ret.scale, parse::uinteger32(buffer<char>::from_ptr(matches[10].first, matches[10].second - matches[10].first)));
+                        ret.scale = (ret.scale == 1 ? 0 : ret.scale == 2 ? 1 : ret.scale == 4 ? 2 : 3);
+                    }
+
+                    if (ret.base.size() == 64 || ret.index.size() == 64)
+                    {
+                        *parg = argtype_t::regmem64;
+                    }
+                    else
+                    {
+                        *parg = argtype_t::regmem32;
+                    }
+                }
+                else
+                {
+                    return __error_msg(errors::assembler::invalid_indirect_address_scheme, "Addressing: "_s + to_string(iter->value) + " is invalid");
+                }
+            }
         }
         else if (iter->value == "eax" || iter->value == "EAX")
         {
             *parg = argtype_t::EAX;
+            ret.mode = modrm_t::mode_t::register_direct;
+            ret.reg = register_t::EAX;
         }
         else if (iter->value == "rax" || iter->value == "RAX")
         {
             *parg = argtype_t::RAX;
-            mnemonic.operand_size = 64;
+            ret.mode = modrm_t::mode_t::register_direct;
+            ret.reg = register_t::RAX;
         }
         else
         {
             register_t reg(iter->value);
             if (reg == register_t::invalid)
             {
-                return __error_msg(errors::assembler::InvalidArgument, "Argument "_s + to_string(iter->value) + " not recognized");
+                return __error_msg(errors::assembler::invalid_argument, "Argument "_s + to_string(iter->value) + " not recognized");
             }
+
+            ret.mode = modrm_t::mode_t::register_direct;
+            ret.reg = reg;
 
             if (reg.size() == 64)
             {
-                mnemonic.operand_size = 64;
                 *parg = argtype_t::reg64;
             }
             else
@@ -1091,47 +1207,51 @@ namespace cgengine
             }
         }
 
-        return error();
+        return ret;
     }
     optional<instruction_t> parse_instruction(nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end) noexcept
     {
         instruction_t ret;
         if (iter->value.size >= 16)
         {
-            return __error_msg(errors::assembler::InvalidInstruction, "Label "_s + to_string(iter->value) + " is not a recognized instruction (length exceeded 16)");
+            return __error_msg(errors::assembler::invalid_instruction, "Label "_s + to_string(iter->value) + " is not a recognized instruction (length exceeded 16)");
         }
 
-        mnemonic_t mnemonic;
-        memcpy(mnemonic.label, iter->value.ptr, iter->value.size);
+        memcpy(ret.signature.label, iter->value.ptr, iter->value.size);
 
         if (++iter != end && clear_whitespace_inline(iter, end))
         {
-            __checked(parse_argument(mnemonic, &mnemonic.arg1, ret, iter, end));
+            __checkedinto(ret.arg1, parse_argument(&ret.signature.arg1, iter, end));
             if (iter != end && iter->delimiter == ',')
             {
-                if (++iter == end) return __error_msg(errors::assembler::UnexpectedEndOfStatement, "Label "_s + to_string(iter->value) + ": Ended in a ','");
-                __checked(parse_argument(mnemonic, &mnemonic.arg1, ret, iter, end));
+                if (++iter == end || !clear_whitespace_inline(iter, end)) return __error_msg(errors::assembler::unexpected_end_of_statment, "Label "_s + to_string(iter->value) + ": Ended in a ','");
+                __checkedinto(ret.arg2, parse_argument(&ret.signature.arg2, iter, end));
+                ++iter;
             }
         }
 
-        //if (arg[0] == '[')
-        //{
-        //    // indirect addressing mode
-        //    instruction.has_modrm = true;
-        //
-        //}
-        //else if (arg[0] >= '9')
-        //{
-        //    // direct register mode
-        //    instruction.has_modrm = true;
-        //    instruction.modrm.mod = modrm_t::mode_t::register_direct;
-        //
-        //}
-        //else
-        //{
-        //    // parse immediate
-        //
-        //}
+        // find overload
+        signature_t test = ret.signature;
+        do
+        {
+            if (auto op = opcode_map.find(test); op != opcode_map.end())
+            {
+                ret.signature = test;
+                ret.opcode = op->second;
+                break;
+            }
+
+            if (!(++test.arg2).valid())
+            {
+                if (!(++test.arg1).valid())
+                {
+                    return __error_msg(errors::assembler::instruction_overload_not_found, "Could not find overload for label "_s + to_string(iter->value));
+                }
+                test.arg2 = ret.signature.arg2;
+            }
+
+        } while (true);
+
         return ret;
     }
 
@@ -1160,198 +1280,17 @@ namespace cgengine
         return ret;
     }
 
-    using opemit = error(*)(buffervec<uint8_t>& assembly, const string& operands);
-
 #define __ms__(x) #x
 #define __ms(x) __ms__(x)
-#define __moveop(o, c) if (!++optok) return __error_msg(errors::unexpected_value, "Instruction " o  " requires " __ms(c) " operands." );
-
-    single_tokenizer optok;
-    umap<string, opemit> opcode_emitter = {
-        {
-            s("add"),
-            [](buffervec<uint8_t>& assembly, const string& operands) {
-                optok.set(operands, ',');
-                auto operand1 = optok.value();
-                __moveop("add", 2);
-
-                __useif(imm, parse::integer64trim(optok.value()))
-                {
-                    //
-                    // ADD reg/mem16, imm8 83 /0 ib            Add sign-extended imm8 to reg/mem16
-                    // ADD reg/mem32, imm8 83 /0 ib            Add sign-extended imm8 to reg/mem32.
-                    // ADD reg/mem64, imm8 83 /0 ib            Add sign-extended imm8 to reg/mem64.
-                    // 8-bit immediate
-                    if (imm <= std::numeric_limits<int8_t>::max() && imm >= std::numeric_limits<int8_t>::lowest())
-                    {
-                        assembly.push((uint8_t)0x83);
-                        assembly.push(modrm_t::make(register_t(operand1)));
-                        assembly.push((int8_t)imm);
-                    }
-                    else if (imm <= std::numeric_limits<int32_t>::max() && imm >= std::numeric_limits<int32_t>::lowest())
-                    {
-                        assembly.push((uint8_t)0x05);
-                        assembly.push(imm);
-                    }
-                }
-                __else
-                {
-                    if (operand1[0] == '[')
-                    {
-
-                    }
-                    else
-                    {
-                        if (optok.value()[0] == '[')
-                        {
-
-                        }
-                        else
-                        {
-                            assembly.push((uint8_t)0x03);
-                            assembly.push(modrm_t::make(modrm_t::mode_t::register_direct, operand1, optok.value()));
-                        }
-                    }
-                }
-
-                
-
-                return error();
-            }
-        },
-        {
-            s("lea"),
-            [](buffervec<uint8_t>& assembly, const string& operands) {
-
-                /*
-                LEA reg32, mem 8D /r Store effective address in a 32-bit register.
-                LEA reg64, mem 8D /r Store effective address in a 64-bit register.
-                */
-                instruction_t instruction {
-                    .rex = {
-                        .w = 1
-                    },
-                    .opcode = 0x8D
-                };
-
-
-                return error();
-            }
-        },
-        {
-            s("mov"),
-            [](buffervec<uint8_t>& assembly, const string& operands) {
-                optok.set(operands, ',');
-                auto operand1 = optok.value();
-                __moveop("mov", 2);
-
-                /*
-                MOV reg32, imm32 B8 +rd id Move an 32-bit immediate value into a 32-bit register.
-                MOV reg64, imm64 B8 +rq iq Move an 64-bit immediate value into a 64-bit register
-                MOV reg/mem32, imm32 C7 /0 id Move a 32-bit immediate value to a 32-bit register or memory operand.
-                MOV reg/mem64, imm32 C7 /0 id Move a 32-bit signed immediate value to a 64-bit register or memory operand.
-                */
-                __useif(imm, parse::integer64trim(optok.value()))
-                {
-                    // indirect
-                    if (operand1[0] == '[')
-                    {
-                        if (imm <= std::numeric_limits<uint32_t>::max() && imm >= std::numeric_limits<uint32_t>::lowest())
-                        {
-                            parse_indirect_op(assembly, optok.value(), 32, 0xC7);
-                            assembly.push((uint32_t)imm);
-                        }
-                        else if (imm <= std::numeric_limits<int32_t>::max() && imm >= std::numeric_limits<int32_t>::lowest())
-                        {
-                            parse_indirect_op(assembly, optok.value(), 64, 0xC7);
-                            assembly.push((int32_t)imm);
-                        }
-                        else __assert(false);
-                    }
-
-                    // register direct
-                    else
-                    {
-                        register_t r = register_t(operand1);
-                        rex_t rex = push_register_op(assembly, r, (uint8_t)(0xB8 + (int32_t)register_code_t(r)));
-
-                        if (rex.operand_size() == 32)
-                        {
-                            assembly.push((int32_t)imm);
-                        }
-                        else
-                        {
-                            assembly.push((int64_t)imm);
-                        }
-                    }
-                }
-                __else
-                {
-
-                }
-
-                return error();
-            }
-        },
-        {
-            s("push"),
-            [](buffervec<uint8_t>& assembly, const string& operands) {
-                optok.set(operands, ',');
-                
-                /*
-                    PUSH imm32 68 id Push a 32-bit immediate value onto the stack. (No prefix for encoding this in 64-bit mode.)
-                    PUSH imm64 68 id Push a sign-extended 32-bit immediate value onto the stack.
-                */
-                __useif(imm, parse::integer32trim(optok.value()))
-                {
-                    assembly.push((uint8_t)(0x68));
-                    assembly.push((int32_t)imm);
-                }
-                __else
-                {
-
-                }
-
-                return error();
-            }
-        },
-        {
-            s("pop"),
-            [](buffervec<uint8_t>& assembly, const string& operands) {
-
-                /*
-                    POP reg32 58 +rd Pop the top of the stack into a 32-bit register. (No prefix for encoding this in 64-bit mode.)
-                    POP reg64 58 +rq Pop the top of the stack into a 64-bit register
-                */
-                optok.set(operands, ',');
-                auto operand1 = optok.value();
-
-                register_t r = register_t(operand1);
-                rex_t rex = rex_t::make(r);
-
-                if (rex.b != 0) assembly.push(rex);
-                assembly.push((uint8_t)(0x58 + (int32_t)register_code_t(r)));
-
-                return error();
-            }
-        },
-        {
-            s("ret"),
-            [](buffervec<uint8_t>& assembly, const string& operands) {
-                assembly.push((uint8_t)0xC3);
-                return error();
-            }
-        }
-    };
-
-
 
 
     error main() noexcept
     {
         buffervec<uint8_t> assembly;
         __checkedinto(assembly, assemble(R"(
-                                    add eax, 350
+                                    mov eax, 350
+                                    mov ebx, 350
+                                    add eax, ebx
                                     ret
                                 )"));
 
@@ -1379,7 +1318,10 @@ namespace cgengine
 
 int32_t main()
 {
-    cgengine::main();
+    if (auto e = cgengine::main(); !e.success())
+    {
+        printf("%s\n", e.to_string().c_str());
+    }
 }
 
 

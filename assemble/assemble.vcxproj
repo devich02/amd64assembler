@@ -162,6 +162,7 @@
     <ClInclude Include="precompiled.h" />
   </ItemGroup>
   <ItemGroup>
+    <Natvis Include="assembler.natvis" />
     <Natvis Include="main.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
