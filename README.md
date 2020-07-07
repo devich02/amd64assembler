@@ -6,3 +6,6 @@ I used the strongest copy-left license available on github to discourage corpora
 
 # Status
 This project is currently only on github for tracking purposes and will not build without the private external libraries it includes. At some point, I will make those available as well.
+
+# Support
+https://ko-fi.com/gdevi
