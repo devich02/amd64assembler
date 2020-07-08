@@ -29,12 +29,10 @@
 
   <Type Name="cgengine::instruction_t">
     <Expand>
-      <Item Name="opcode">opcode, x</Item>
-      <Item Name="rex">rex</Item>
-      <Item Name="modrm">modrm</Item>
-      <Item Name="sib">sib</Item>
-      <Item Name="sib-displacement">sib_displacement</Item>
-      <Item Name="immediate" Condition="has_immediate == true">immediate</Item>
+      <Item Name="opcode">opcode, X</Item>
+      <Item Name="arg1">arg1</Item>
+      <Item Name="arg2">arg2</Item>
+      <Item Name="signature">signature</Item>
     </Expand>
   </Type>
 
