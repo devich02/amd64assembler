@@ -7,6 +7,8 @@
 #include <containers/umap>
 #include <parse.h>
 
+#include <os/file.h>
+
 #include "structures.h"
 #include "cpuid.h"
 #include "opcodes_core.h"

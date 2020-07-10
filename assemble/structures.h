@@ -1023,6 +1023,10 @@ namespace cgengine
             {
                 return value == regmem32 || value == regmem64 || value == regmem128 || value == regmem256;
             }
+            _executeinline bool is_mem() const noexcept
+            {
+                return value == mem32 || value == mem64 || value == mem128 || value == mem256;
+            }
             _executeinline bool is_ax() const noexcept
             {
                 return value == EAX || value == RAX;
@@ -1185,7 +1189,7 @@ namespace cgengine
                     __assert(arg.mode == modrm_t::mode_t::register_direct);
                     return false;
                 }
-                else if (type.is_regmem())
+                else if (type.is_regmem() || type.is_mem())
                 {
                     target_modrm.mod = arg.mode;
 
@@ -1266,7 +1270,8 @@ namespace cgengine
                 if (needs_sib)
                 {
                     if (!assembly.push(sib)) return __error(errors::out_of_memory);
-                    if (sib.base == 0b101)
+                    if (modrm.mod != modrm_t::mode_t::register_direct
+                        && modrm.mod != modrm_t::mode_t::register_indirect)
                     {
                         if (modrm.mod == 0b00 && !assembly.push(sib_disp)) return __error(errors::out_of_memory);
                         else if (modrm.mod == 0b01 && !assembly.push((uint8_t)sib_disp)) return __error(errors::out_of_memory);

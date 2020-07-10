@@ -91,11 +91,10 @@ namespace cgengine
     */
         error main() noexcept
         {
-            buffervec<uint8_t> assembly;
-            __checkedinto(assembly, assemble(R"(
-                                    pabsb xmm0, xmm1
-                                    ret
-                                )"));
+            assembler::asmexe assembly;
+            buffer<uint8_t> data;
+            __checkedinto(data, file::read_all(R"(C:\Users\gianc\source\repos\amd64assembler\test.asm)"));
+            __checkedinto(assembly, assemble(data));
 
             mem = VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
@@ -132,7 +131,7 @@ namespace cgengine
             //uint32_t v3 = cpuid_queries()["L1DcLinesPerTag"].execute();
             //uint32_t v4 = cpuid_queries()["L1DcLineSize"].execute();
 
-            memcpy(mem, assembly.ptr(), assembly.size());
+  /*          memcpy(mem, assembly.ptr, assembly.size);
             using cd = int(*)();
 
             timer tk, tk2;
@@ -140,10 +139,14 @@ namespace cgengine
 
             double a = 20;
             a *= 10;
+            for (int i = 0; i < 10; ++i)
+            {
+                a *= 10;
+            }
 
             tk.start();
             b = ((cd)mem)();
-            tk.stop();
+            tk.stop();*/
 
 
             return error();

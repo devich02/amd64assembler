@@ -1,5 +1,6 @@
 #pragma once
 #include <regex>
+#include <json.h>
 #include "structures.h"
 #include "cpuid.h"
 #include "opcodes_core.h"
@@ -9,15 +10,53 @@ namespace cgengine
     namespace assembler
     {
 
+        struct asmexe
+        {
+            void* pexecutable = nullptr;
+            json::token asmmeta;
+
+            _executeinline asmexe() {}
+            __nocopy(asmexe);
+            _executeinline asmexe(asmexe&& other) noexcept :
+                pexecutable(other.pexecutable),
+                asmmeta(std::move(other.asmmeta))
+            {
+                other.pexecutable = nullptr;
+            }
+            __move(asmexe);
+
+            _executeinline void* operator[](__referencestring const string& fnname) const noexcept
+            {
+                __referencestring__assert(fnname);
+
+                if (auto& f = asmmeta[s("export-procs")][&fnname]; f.type() == json::value_type::none)
+                {
+                    return nullptr;
+                }
+                else
+                {
+                    return (void*)(((uint8_t*)pexecutable) + ((int64_t)f[s("rip")]));
+                }
+            }
+        };
+
         bool clear_whitespace_inline(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
         {
             while (b->value.size == 0)
             {
-                if (b->delimiter == '\n')
+                if (b->delimiter == '\n' || b->delimiter == '\r')
                 {
                     ++b;
                     return false;
                 }
+                if (++b == e) return false;
+            }
+            return true;
+        }
+        bool clear_whitespace(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
+        {
+            while (b->value.size == 0)
+            {
                 if (++b == e) return false;
             }
             return true;
@@ -155,7 +194,18 @@ namespace cgengine
                             }
                             else if (reg == register_t::ESP || reg == register_t::RSP)
                             {
-                                return __error_msg(errors::assembler::invalid_indirect_address_scheme, "Cannot add displacement to RSP");
+                                /// reg for base is rsp
+                                /// reg for index is (none)
+                                ret.base = reg;
+                                ret.index = reg;
+                                if (ret.disp <= std::numeric_limits<uint8_t>::max())
+                                {
+                                    ret.mode = modrm_t::mode_t::indirect_rbp_disp8;
+                                }
+                                else
+                                {
+                                    ret.mode = modrm_t::mode_t::indirect_rbp_disp32;
+                                }
                             }
                             else
                             {
@@ -283,23 +333,6 @@ namespace cgengine
         }
         optional<instruction_t> parse_instruction(nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, umap<string, int64_t>& labels) noexcept
         {
-            if (iter->delimiter == '\n')
-            {
-                if (iter->value.size == 0)
-                {
-                    return __error_msg(errors::assembler::instruction_incomplete, "Empty statement");
-                }
-                if (iter->value.back() == ':')
-                {
-                    string label = to_string(iter->value);
-                    label.pop_back();
-
-                    labels[label] = pos;
-                    ++iter;
-                    return instruction_t{ .opcode = {.flags = opcode_flags_t::label } };
-                }
-            }
-
             instruction_t ret;
             if (iter->value.size >= 16)
             {
@@ -433,90 +466,161 @@ namespace cgengine
             return ret;
         }
 
-        optional<buffervec<uint8_t>> assemble(const string& code) noexcept
+
+        struct flags
+        {
+            enum vt
+            {
+                __none = 0,
+                __export = 0b00000001,
+                __proc = 0b00000010,
+            } value;
+            __enum(flags);
+            __enumflags(flags);
+        };
+
+        _executeinline optional<asmexe> assemble(const buffer<char>& code) noexcept
         {
             buffervec<uint8_t> ret;
             umap<string, int64_t> labels;
+
+            json::token asmmeta;
+            
+
+            flags cflags = flags::__none;
 
             nextany_tokenizer tokenizer;
             tokenizer.add(" \n\r,");
             tokenizer.set(code);
             auto b = tokenizer.begin();
             auto e = tokenizer.end();
-            while (b != e)
+            while (clear_whitespace(b, e))
             {
-                while (b->value.size == 0)
+                if (b->value == "__export")
                 {
-                    if (++b == e) break;
+                    cflags |= flags::__export;
+                    ++b;
                 }
-                if (b == e) break;
-
-                instruction_t instruction;
-                __checkedinto(instruction, parse_instruction(b, e, ret.size(), labels));
-                if (instruction.opcode.code != 0 || !instruction.opcode.flags.has(opcode_flags_t::label))
+                else if (b->value == "__proc")
                 {
+                    cflags |= flags::__proc;
+                    ++b;
+                }
+                else
+                {
+                    if (b->delimiter == '\n' || b->delimiter == '\r')
+                    {
+                        if (b->value.size == 0)
+                        {
+                            return __error_msg(errors::assembler::instruction_incomplete, "Empty statement");
+                        }
+                        if (b->value.back() == ':')
+                        {
+                            string label = to_string(b->value);
+                            label.pop_back();
+
+                            if (cflags.has(flags::__proc | flags::__export))
+                            {
+                                asmmeta[s("export-procs")][label] = json::token{
+                                    { "rip", ret.size() }
+                                };
+                            }
+                            cflags.clear(flags::__proc | flags::__export);
+
+                            labels[label] = ret.size();
+                            ++b;
+                            continue;
+                        }
+                    }
+
+                    if (cflags.has(flags::__proc | flags::__export))
+                    {
+                        return __error_msg(errors::assembler::invalid_instruction, "__proc or __export specifiers MUST precede a label and not an instruction");
+                    }
+
+                    instruction_t instruction;
+                    __checkedinto(instruction, parse_instruction(b, e, ret.size(), labels));
                     __checked(instruction.emit(ret));
                 }
             }
+            
+            asmexe _ret;
 
-            return ret;
+            _ret.asmmeta = std::move(asmmeta);
+            _ret.pexecutable = VirtualAlloc(nullptr, ((ret.size() + 4095) >> 12) << 12, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+            if (_ret.pexecutable == nullptr) return __error(errors::out_of_memory);
+            memcpy(_ret.pexecutable, ret.ptr(), ret.size());
+
+            return _ret;
         }
+        _executeinline optional<asmexe> assemble(const buffer<uint8_t>& code) noexcept
+        {
+            return assemble(code.view<char>());
+        }
+        optional<asmexe> assemble(const string& code) noexcept
+        {
+            return assemble(buffer<char>::from_ptr(code.c_str(), code.length()));
+        }
+
 
 
 
         optional<uint32_t> cpuq_t::execute()
         {
-            buffervec<uint8_t> assembly;
 
-            string header = R"(
-    push rsi
-    push rdi
-    push rcx
-    push ebx
-    push rbp
-
-    push r9
-    push r8
-    push rdx
-    push rcx
-
-)";
-
-            string footer = R"(
-    cpuid
-                    
-    pop rbp
-    mov [ebp], eax
-
-    pop rbp
-    mov [ebp], ebx
-
-    pop rbp
-    mov [ebp], ecx
-
-    pop rbp
-    mov [ebp], edx
-
-    pop rbp
-    pop ebx
-    pop rcx
-    pop rdi
-    pop rsi
-    ret
-)";
-            thread_local static void* mem = nullptr;
-            if (mem == nullptr)
+            using cd = int(*)(uint32_t* rax, uint32_t* rbx, uint32_t* rcx, uint32_t* rdx, uint32_t fn, uint32_t subfn);
+            thread_local static asmexe mem;
+            thread_local static cd cpuid = nullptr;
+            if (cpuid == nullptr)
             {
-                mem = VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+                __checkedinto(mem, assemble(R"(
+__export
+__proc 
+    f__cpuid:
+        push rsi
+        push rdi
+        push rcx
+        push ebx
+        push rbp
+
+        push r9
+        push r8
+        push rdx
+        push rcx
+
+        mov eax, [rsp+112]
+        mov ecx, [rsp+120]
+        cpuid
+                    
+        pop rbp
+        mov [ebp], eax
+
+        pop rbp
+        mov [ebp], ebx
+
+        pop rbp
+        mov [ebp], ecx
+
+        pop rbp
+        mov [ebp], edx
+
+        pop rbp
+        pop ebx
+        pop rcx
+        pop rdi
+        pop rsi
+        ret
+)"));
+
+
+                cpuid = (cd)mem[s("f__cpuid")];
             }
 
-            __checkedinto(assembly, assemble(header + "mov eax, " + fn + "\nmov ecx, " + subfn + "\n" + footer));
-            memcpy(mem, assembly.ptr(), assembly.size());
 
-            using cd = int(*)(uint32_t* rax, uint32_t* rbx, uint32_t* rcx, uint32_t* rdx);
 
             uint32_t result[4];
-            ((cd)mem)(result, result + 1, result + 2, result + 3);
+            cpuid(result, result + 1, result + 2, result + 3, fn, subfn);
 
             return (result[(int32_t)regpos] >> bit_start) & mask(bit_end - bit_start);
         }

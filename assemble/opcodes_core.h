@@ -2033,6 +2033,7 @@ namespace cgengine
                     { { "mov",  argtype_t::regmem32, argtype_t::reg32    }, { 0x89, ("mov dst, src | Move | Move the contents of a 32-bit register to a 32-bit destination register or memory operand") } },
                     { { "mov",  argtype_t::regmem64, argtype_t::reg64    }, { 0x89, ("mov dst, src | Move | Move the contents of a 64-bit register to a 64-bit destination register or memory operand") } },
                     { { "mov",  argtype_t::reg32,    argtype_t::regmem32 }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
+                    { { "mov",  argtype_t::reg32,    argtype_t::mem64    }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
                     { { "mov",  argtype_t::reg64,    argtype_t::regmem64 }, { 0x8B, ("mov dst, src | Move | Move the contents of a 64-bit register or memory to a 64-bit destination register") } },
                     { { "mov",  argtype_t::reg32,    argtype_t::imm32    }, { 0xB8, ("mov dst, src | Move | Move a 32-bit immediate value into a 32-bit register"), opcode_flags_t::register_adjusted } },
                     { { "mov",  argtype_t::reg64,    argtype_t::imm64    }, { 0xB8, ("mov dst, src | Move | Move a 64-bit immediate value into a 64-bit register"), opcode_flags_t::register_adjusted } },
