@@ -26,6 +26,18 @@
     <ClInclude Include="precompiled.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="structures.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cpuid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="opcodes_core.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="assembler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="main.natvis" />
