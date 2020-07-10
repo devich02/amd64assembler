@@ -91,7 +91,15 @@ namespace cgengine
                         ret.mode = modrm_t::mode_t::register_indirect;
                     }
 
-                    if (reg.size() == 64)
+                    if (reg.size() == 256)
+                    {
+                        *parg = argtype_t::mem256;
+                    }
+                    else if (reg.size() == 128)
+                    {
+                        *parg = argtype_t::mem128;
+                    }
+                    else if (reg.size() == 64)
                     {
                         *parg = argtype_t::mem64;
                     }
@@ -183,7 +191,15 @@ namespace cgengine
                             ret.scale = (ret.scale == 1 ? 0 : ret.scale == 2 ? 1 : ret.scale == 4 ? 2 : 3);
                         }
 
-                        if (ret.base.size() == 64 || ret.index.size() == 64)
+                        if (ret.base.size() == 256 || ret.index.size() == 256)
+                        {
+                            *parg = argtype_t::mem256;
+                        }
+                        else if (ret.base.size() == 128 || ret.index.size() == 128)
+                        {
+                            *parg = argtype_t::mem128;
+                        }
+                        else if (ret.base.size() == 64 || ret.index.size() == 64)
                         {
                             *parg = argtype_t::mem64;
                         }
@@ -244,7 +260,15 @@ namespace cgengine
                 ret.mode = modrm_t::mode_t::register_direct;
                 ret.reg = reg;
 
-                if (reg.size() == 64)
+                if (reg.size() == 256)
+                {
+                    *parg = argtype_t::reg256;
+                }
+                else if (reg.size() == 128)
+                {
+                    *parg = argtype_t::reg128;
+                }
+                else if (reg.size() == 64)
                 {
                     *parg = argtype_t::reg64;
                 }

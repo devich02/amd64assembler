@@ -38,6 +38,12 @@
     <ClInclude Include="assembler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="opcodes_x87.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="opcode_ext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="main.natvis" />

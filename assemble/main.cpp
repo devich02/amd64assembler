@@ -1,5 +1,8 @@
 
 #include "precompiled.h"
+
+#include "opcode_ext.h"
+
 #include "assembler.h"
 
 ///
@@ -90,7 +93,7 @@ namespace cgengine
         {
             buffervec<uint8_t> assembly;
             __checkedinto(assembly, assemble(R"(
-                                    rdrand eax
+                                    pabsb xmm0, xmm1
                                     ret
                                 )"));
 
@@ -134,6 +137,9 @@ namespace cgengine
 
             timer tk, tk2;
             volatile int b = 0;
+
+            double a = 20;
+            a *= 10;
 
             tk.start();
             b = ((cd)mem)();

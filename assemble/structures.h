@@ -498,6 +498,10 @@ namespace cgengine
                 case AX: case BX: case CX: case DX: case DI: case SI: case BP: case SP: case SS: return 16;
                 case EAX: case EBX: case ECX: case EDX: case EDI: case ESI: case EBP: case ESP: return 32;
                 case RAX: case RBX: case RCX: case RDX: case RDI: case RSI: case RBP: case RSP: return 64;
+
+
+                case XMM0:case XMM1:case XMM2:case XMM3:case XMM4:case XMM5:case XMM6:case XMM7:case XMM8:case XMM9:case XMM10:case XMM11:case XMM12:case XMM13:case XMM14:case XMM15: return 128;
+                case YMM0:case YMM1:case YMM2:case YMM3:case YMM4:case YMM5:case YMM6:case YMM7:case YMM8:case YMM9:case YMM10:case YMM11:case YMM12:case YMM13:case YMM14:case YMM15: return 256;
                 }
                 return 0;
             }
@@ -605,17 +609,17 @@ namespace cgengine
                 case register_t::EAX:
                 case register_t::RAX: value = AX; break;
 
-                case register_t::XMM1: case register_t::XMM11:
+                case register_t::XMM3: case register_t::XMM11:
                 case register_t::R11: case register_t::R11D:
                 case register_t::EBX:
                 case register_t::RBX: value = BX; break;
 
-                case register_t::XMM2: case register_t::XMM9:
+                case register_t::XMM1: case register_t::XMM9:
                 case register_t::R9: case register_t::R9D:
                 case register_t::ECX:
                 case register_t::RCX: value = CX; break;
 
-                case register_t::XMM3: case register_t::XMM10:
+                case register_t::XMM2: case register_t::XMM10:
                 case register_t::R10: case register_t::R10D:
                 case register_t::EDX:
                 case register_t::RDX: value = DX; break;
@@ -951,12 +955,18 @@ namespace cgengine
                 unused = 0,
                 EAX = 0b10000000,
                 RAX = EAX + 1,
-                reg32 = EAX + 2,
-                reg64 = EAX + 3,
-                mem32 = EAX + 4,
-                mem64 = EAX + 5,
-                regmem32 = EAX + 6,
-                regmem64 = EAX + 7,
+                reg32 =     EAX + 2,
+                mem32 =     EAX + 3,
+                regmem32 =  EAX + 4,
+                reg64 =     EAX + 5,
+                mem64 =     EAX + 6,
+                regmem64 =  EAX + 7,
+                reg128 =    EAX + 8,
+                mem128 =    EAX + 9,
+                regmem128 = EAX + 10,
+                reg256 =    EAX + 11,
+                mem256 =    EAX + 12,
+                regmem256 = EAX + 13,
                 imm8 = 0b00010000,
                 imm16 = imm8 + 1,
                 imm32 = imm8 + 2,
@@ -973,10 +983,16 @@ namespace cgengine
                 case RAX:
                 case regmem32:
                 case regmem64:
+                case regmem128:
+                case regmem256:
                 case mem32:
                 case mem64:
+                case mem128:
+                case mem256:
                 case reg32:
                 case reg64:
+                case reg128:
+                case reg256:
                 case imm8:
                 case imm16:
                 case imm32:
@@ -999,13 +1015,21 @@ namespace cgengine
                 return *this;
             }
 
+            _executeinline bool is_reg() const noexcept
+            {
+                return value == reg32 || value == reg64 || value == reg128 || value == reg256;
+            }
+            _executeinline bool is_regmem() const noexcept
+            {
+                return value == regmem32 || value == regmem64 || value == regmem128 || value == regmem256;
+            }
             _executeinline bool is_ax() const noexcept
             {
                 return value == EAX || value == RAX;
             }
             _executeinline bool is_modrm() const noexcept
             {
-                return value >= reg32 && value <= regmem64;
+                return value >= reg32 && value <= regmem256;
             }
             _executeinline bool is_immediate() const noexcept
             {
@@ -1148,7 +1172,7 @@ namespace cgengine
             {
                 if (!type.is_modrm()) return false;
 
-                if (type == argtype_t::reg32 || type == argtype_t::reg64)
+                if (type.is_reg())
                 {
                     if (opcode.flags.has(opcode_flags_t::regopcode_ext))
                     {
@@ -1161,7 +1185,7 @@ namespace cgengine
                     __assert(arg.mode == modrm_t::mode_t::register_direct);
                     return false;
                 }
-                else if (type == argtype_t::regmem32 || type == argtype_t::regmem64)
+                else if (type.is_regmem())
                 {
                     target_modrm.mod = arg.mode;
 

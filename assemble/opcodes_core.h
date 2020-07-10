@@ -14,8 +14,9 @@ namespace cgengine
             static umap<signature_t, opcode_t, value_type_hash<signature_t>>* popcodes_core = statics::get< umap<signature_t, opcode_t, value_type_hash<signature_t>>*>(_FUNC);
             return *popcodes_core;
         }
-
-            _inline void add_core_ops() 
+        namespace ___internal 
+        {
+            _inline void add_core_ops()
             {
                 vector<std::pair<signature_t, opcode_t>> core
                 {
@@ -3301,7 +3302,7 @@ namespace cgengine
                 }
             };
 
-        __static_initialize(__add_coreops, add_core_ops);
-
+            __static_initialize(__add_coreops, add_core_ops);
+        }
     }
 }
