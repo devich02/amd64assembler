@@ -96,7 +96,9 @@ namespace cgengine
             __checkedinto(data, file::read_all(R"(C:\Users\gianc\source\repos\amd64assembler\test.asm)"));
             __checkedinto(assembly, assemble(data));
 
-            mem = VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+
+            printf("asdfasdf, asdfasdf\n");
+
 
 
             printf("Has ADX: %s\n", cpuid_queries()["ADX"].execute() == 1 ? "true" : "false");
@@ -126,28 +128,11 @@ namespace cgengine
             printf("Has TscInvariant: %s\n", cpuid_queries()["TscInvariant"].execute() == 1 ? "true" : "false");
             printf("Has SysCallSysRet: %s\n", cpuid_queries()["SysCallSysRet"].execute() == 1 ? "true" : "false");
 
-            //uint32_t v1 = cpuid_queries()["L1DcSize"].execute();
-            //uint32_t v2 = cpuid_queries()["L1IcSize"].execute();
-            //uint32_t v3 = cpuid_queries()["L1DcLinesPerTag"].execute();
-            //uint32_t v4 = cpuid_queries()["L1DcLineSize"].execute();
 
-  /*          memcpy(mem, assembly.ptr, assembly.size);
-            using cd = int(*)();
+            using cf = float(*)();
+            cf c = ((cf)assembly[s("test")]);
 
-            timer tk, tk2;
-            volatile int b = 0;
-
-            double a = 20;
-            a *= 10;
-            for (int i = 0; i < 10; ++i)
-            {
-                a *= 10;
-            }
-
-            tk.start();
-            b = ((cd)mem)();
-            tk.stop();*/
-
+            float f = c();
 
             return error();
         }

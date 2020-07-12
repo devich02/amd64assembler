@@ -1885,13 +1885,7 @@ namespace cgengine
                     } },
 
 
-                    { { "lea", argtype_t::reg32, argtype_t::regmem32 },
-                      {
-                          0x8D,
-                          "lea dst, src | Load Effective Address | Computes the effective address of a memory location (second operand) and stores it in a generalpurpose register (first operand). "
-                      }
-                    },
-                    { { "lea", argtype_t::reg64, argtype_t::regmem64 },
+                    { { "lea", argtype_t::reg64, argtype_t::mem },
                       {
                           0x8D,
                           "lea dst, src | Load Effective Address | Computes the effective address of a memory location (second operand) and stores it in a generalpurpose register (first operand). "
@@ -3299,7 +3293,25 @@ namespace cgengine
                 };
                 for (auto& instruction : core)
                 {
-                    opcode_map().try_emplace(std::move(instruction.first), std::move(instruction.second));
+                    opcode_map().try_emplace((instruction.first), (instruction.second));
+                    for (int32_t i = 0; i < 4; ++i)
+                    {
+                        if (instruction.first.types[i] == argtype_t::mem)
+                        {
+                            for (argtype_t::vt t = argtype_t::mem8; t <= argtype_t::mem256; t = (argtype_t::vt)(t + 1))
+                            {
+                                auto temp = instruction.first;
+                                temp.types[i] = t;
+                                opcode_map().try_emplace(temp, (instruction.second));
+                            }
+                        }
+                        else if (instruction.first.types[i].is_regmem() || instruction.first.types[i].is_mem())
+                        {
+                            auto temp = instruction.first;
+                            temp.types[i] = argtype_t::mem;
+                            opcode_map().try_emplace(temp, (instruction.second));
+                        }
+                    }
                 }
             };
 

@@ -161,6 +161,7 @@
   <ItemGroup>
     <ClInclude Include="assembler.h" />
     <ClInclude Include="cpuid.h" />
+    <ClInclude Include="linktable_core.h" />
     <ClInclude Include="opcodes_core.h" />
     <ClInclude Include="opcodes_x87.h" />
     <ClInclude Include="opcode_ext.h" />

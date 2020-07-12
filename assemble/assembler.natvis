@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-  <Type Name="cgengine::modrm_t">
+  <Type Name="cgengine::assembler::modrm_t">
     <Expand>
       <Item Name="mod">mod,b</Item>
       <Item Name="reg">reg,b</Item>
@@ -9,7 +9,7 @@
     </Expand>
   </Type>
 
-  <Type Name="cgengine::sib_t">
+  <Type Name="cgengine::assembler::sib_t">
     <Expand>
       <Item Name="base">base,b</Item>
       <Item Name="index">index,b</Item>
@@ -17,7 +17,7 @@
     </Expand>
   </Type>
 
-  <Type Name="cgengine::rex_t">
+  <Type Name="cgengine::assembler::rex_t">
     <Expand>
       <Item Name="operand">w == 1 ? 64 : 32</Item>
       <Item Name="reg-ex">r == 1</Item>
@@ -27,7 +27,7 @@
   </Type>
 
 
-  <Type Name="cgengine::instruction_t">
+  <Type Name="cgengine::assembler::instruction_t">
     <Expand>
       <Item Name="opcode">opcode, X</Item>
       <Item Name="arg1">arg1</Item>

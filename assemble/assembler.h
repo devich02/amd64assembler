@@ -4,6 +4,7 @@
 #include "structures.h"
 #include "cpuid.h"
 #include "opcodes_core.h"
+#include "linktable_core.h"
 
 namespace cgengine
 {
@@ -40,6 +41,166 @@ namespace cgengine
             }
         };
 
+        struct data_type
+        {
+            enum vt : uint32_t
+            {
+                __none = 0,
+                __uint8_t  =       0xFFFFFFFF,
+                __uint32_t =       0xFFFFFFFF - 1,
+                __uint64_t =       0xFFFFFFFF - 2,
+                __int8_t =         0xFFFFFFFF - 3,
+                __int32_t =        0xFFFFFFFF - 4,
+                __int64_t =        0xFFFFFFFF - 5,
+                __single_float_t = 0xFFFFFFFF - 6,
+                __double_float_t = 0xFFFFFFFF - 7,
+                __data_t
+            } value;
+            __enum(data_type);
+            data_type(const buffer<char>& name) noexcept :
+                value(__none)
+            {
+                if (name == "__uint8") value = __uint8_t;
+                else if (name == "__uint32") value = __uint32_t;
+                else if (name == "__uint64") value = __uint64_t;
+                else if (name == "__int8") value = __int8_t;
+                else if (name == "__int32") value = __int32_t;
+                else if (name == "__int64") value = __int64_t;
+                else if (name == "__single_float") value = __single_float_t;
+                else if (name == "__double_float") value = __double_float_t;
+                else if (name == "__data_t") value = __data_t;
+            }
+
+            error parse(buffervec<uint8_t>& assembly, nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e) const noexcept
+            {
+                int64_t vi64;
+                uint64_t vui64;
+                float vs;
+                double vd;
+                switch (value)
+                {
+                case __uint8_t: 
+                    __checkedinto(vui64, parse::uinteger64(b->value.view<uint8_t>()));
+                    if (vui64 >= 256)
+                    {
+                        return __error_msg(errors::assembler::invalid_argument, "Value "_s + to_string(b->value) + " is too large for declaration `uint8`");
+                    }
+                    assembly.push((uint8_t)vui64);
+                    break;
+                case __uint32_t:
+                    __checkedinto(vui64, parse::uinteger64(b->value.view<uint8_t>()));
+                    if (vui64 >= std::numeric_limits<uint32_t>::max())
+                    {
+                        return __error_msg(errors::assembler::invalid_argument, "Value "_s + to_string(b->value) + " is too large for declaration `uint32`");
+                    }
+                    assembly.push((uint32_t)vui64);
+                    break;
+                case __uint64_t:
+                    __checkedinto(vui64, parse::uinteger64(b->value.view<uint8_t>()));
+                    assembly.push(vui64);
+                    break;
+
+
+                case __int8_t:
+                    __checkedinto(vi64, parse::integer64(b->value.view<uint8_t>()));
+                    if (vi64 >= std::numeric_limits<int8_t>::max())
+                    {
+                        return __error_msg(errors::assembler::invalid_argument, "Value "_s + to_string(b->value) + " is too large for declaration `int8`");
+                    }
+                    else if (vi64 <= std::numeric_limits<int8_t>::lowest())
+                    {
+                        return __error_msg(errors::assembler::invalid_argument, "Value "_s + to_string(b->value) + " is too small for declaration `int8`");
+                    }
+
+                    assembly.push((int8_t)vi64);
+                    break;
+                case __int32_t:
+                    __checkedinto(vi64, parse::integer64(b->value.view<uint8_t>()));
+                    if (vi64 >= std::numeric_limits<int32_t>::max())
+                    {
+                        return __error_msg(errors::assembler::invalid_argument, "Value "_s + to_string(b->value) + " is too large for declaration `int32`");
+                    }
+                    else if (vi64 <= std::numeric_limits<int32_t>::lowest())
+                    {
+                        return __error_msg(errors::assembler::invalid_argument, "Value "_s + to_string(b->value) + " is too small for declaration `int32`");
+                    }
+
+                    assembly.push((int32_t)vi64);
+                    break;
+                case __int64_t:
+                    __checkedinto(vi64, parse::integer64(b->value.view<uint8_t>()));
+                    assembly.push(vi64);
+                    break;
+
+
+                case __single_float_t:
+                    __checkedinto(vs, parse::single(b->value.view<uint8_t>()));
+                    assembly.push(vs);
+                    break;
+                case __double_float_t:
+                    __checkedinto(vd, parse::single(b->value.view<uint8_t>()));
+                    assembly.push(vd);
+                    break;
+                    
+
+                default: return __error_msg(errors::assembler::invalid_argument, "Data type is invalid");
+                }
+
+                return error();
+            }
+            error reserve(buffervec<uint8_t>& assembly, uint32_t count = 1)
+            {
+                switch (value)
+                {
+                case __uint8_t: case __int8_t: for (uint32_t i = 0; i < count; ++i) if (!assembly.push((uint8_t)0)) return __error(errors::out_of_memory); break;
+                case __uint32_t: case __int32_t: case __single_float_t: for (uint32_t i = 0; i < count; ++i) if (!assembly.push((uint32_t)0)) return __error(errors::out_of_memory); break;
+                case __uint64_t: case __int64_t: case __double_float_t: for (uint32_t i = 0; i < count; ++i) if (!assembly.push((uint64_t)0)) return __error(errors::out_of_memory); break;
+                default: for (uint32_t i = 0; i < count; ++i) if (!assembly.push_empty(value)) return __error(errors::out_of_memory);
+                }
+                return error();
+            }
+            uint32_t size() const noexcept
+            {
+                switch (value)
+                {
+                case __uint8_t: case __int8_t: return 1;
+                case __uint32_t: case __int32_t: case __single_float_t: return 4;
+                case __uint64_t: case __int64_t: case __double_float_t: return 8;
+                }
+                return (uint32_t)value;
+            }
+            argtype_t argtype() const noexcept
+            {
+                switch (value)
+                {
+                case __uint8_t: case __int8_t: return argtype_t::mem8;
+                case __uint32_t: case __int32_t: case __single_float_t: return argtype_t::mem32;
+                case __uint64_t: case __int64_t: case __double_float_t: return argtype_t::mem64;
+                }
+                return argtype_t::unused;
+            }
+        };
+        struct data_info
+        {
+            data_type type;
+            uint32_t count = 1;
+            int64_t rip;
+        };
+
+        struct flags
+        {
+            enum vt
+            {
+                __none   = 0,
+                __export = 0b00000001,
+                __proc   = 0b00000010,
+                __data   = 0b00000100,
+            } value;
+            __enum(flags);
+            __enumflags(flags);
+        };
+
+
         bool clear_whitespace_inline(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
         {
             while (b->value.size == 0)
@@ -55,14 +216,22 @@ namespace cgengine
         }
         bool clear_whitespace(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
         {
-            while (b->value.size == 0)
+            while (b->value.size == 0 && (b->delimiter == ' ' || b->delimiter == '\n' || b->delimiter == '\r' || b->delimiter == '\0'))
             {
                 if (++b == e) return false;
             }
             return true;
         }
+        bool clear_line(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
+        {
+            while (b->value.size != 0 || b->delimiter != '\n')
+            {
+                if (++b == e) return false;
+            }
+            return (++b != e);
+        }
 
-        optional<argument_t> parse_argument(instruction_t* pinstruction, argtype_t* parg, nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, const umap<string, int64_t>& labels)
+        optional<argument_t> parse_argument(instruction_t* pinstruction, argtype_t* parg, nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, const umap<string, int64_t>& labels, umap<string, data_info>& data)
         {
             argument_t ret;
 
@@ -112,6 +281,13 @@ namespace cgengine
                 }
 
             }
+            else if (auto mem = data.find(string(iter->value.ptr + 1, iter->value.ptr + iter->value.size - 1)); mem != data.end())
+            {
+                *parg = mem->second.type.argtype();
+                ret.mode = modrm_t::mode_t::rip_relative;
+                ret.reg = register_t::RBP;
+                *((int64_t*)&ret.disp) = mem->second.rip - pos;
+            }
             else if (iter->value[0] == '[')
             {
                 if (auto reg = register_t(buffer<char>::from_ptr(iter->value.ptr + 1, iter->value.size - 2)); reg != register_t::invalid)
@@ -121,7 +297,7 @@ namespace cgengine
                         // RBP indirect addressing requires base+offset syntax, where offset = 0
                         ret.disp = 0;
                         ret.base = reg;
-                        ret.mode = modrm_t::mode_t::indirect_rbp_disp8;
+                        ret.mode = modrm_t::mode_t::indirect_disp8;
                         ret.scale = 0;
                     }
                     else
@@ -130,22 +306,7 @@ namespace cgengine
                         ret.mode = modrm_t::mode_t::register_indirect;
                     }
 
-                    if (reg.size() == 256)
-                    {
-                        *parg = argtype_t::mem256;
-                    }
-                    else if (reg.size() == 128)
-                    {
-                        *parg = argtype_t::mem128;
-                    }
-                    else if (reg.size() == 64)
-                    {
-                        *parg = argtype_t::mem64;
-                    }
-                    else
-                    {
-                        *parg = argtype_t::mem32;
-                    }
+                    *parg = argtype_t::mem;
                 }
                 else
                 {
@@ -175,43 +336,22 @@ namespace cgengine
                         }
                         else if (matches[4].matched && matches[5].matched)
                         {
-                            // [index*1+disp32]
+                            // [base+disp32]
                             register_t reg = register_t(buffer<char>::from_ptr(matches[4].first, matches[4].second - matches[4].first));
 
                             __checkedinto(ret.disp, parse::uinteger32(buffer<char>::from_ptr(matches[5].first, matches[5].second - matches[5].first)));
 
-                            if (reg == register_t::EBP || reg == register_t::RBP)
+                            if (ret.disp <= std::numeric_limits<uint8_t>::max())
                             {
-                                ret.base = reg;
-                                if (ret.disp <= std::numeric_limits<uint8_t>::max())
-                                {
-                                    ret.mode = modrm_t::mode_t::indirect_rbp_disp8;
-                                }
-                                else
-                                {
-                                    ret.mode = modrm_t::mode_t::indirect_rbp_disp32;
-                                }
-                            }
-                            else if (reg == register_t::ESP || reg == register_t::RSP)
-                            {
-                                /// reg for base is rsp
-                                /// reg for index is (none)
-                                ret.base = reg;
-                                ret.index = reg;
-                                if (ret.disp <= std::numeric_limits<uint8_t>::max())
-                                {
-                                    ret.mode = modrm_t::mode_t::indirect_rbp_disp8;
-                                }
-                                else
-                                {
-                                    ret.mode = modrm_t::mode_t::indirect_rbp_disp32;
-                                }
+                                ret.mode = modrm_t::mode_t::indirect_disp8;
                             }
                             else
                             {
-                                ret.index = reg;
                                 ret.mode = modrm_t::mode_t::indirect_disp32;
                             }
+
+                            ret.index = register_t::RSP;
+                            ret.base = reg;
                         }
                         else if (matches[6].matched && matches[7].matched)
                         {
@@ -240,23 +380,8 @@ namespace cgengine
                             __checkedinto(ret.scale, parse::uinteger32(buffer<char>::from_ptr(matches[10].first, matches[10].second - matches[10].first)));
                             ret.scale = (ret.scale == 1 ? 0 : ret.scale == 2 ? 1 : ret.scale == 4 ? 2 : 3);
                         }
-
-                        if (ret.base.size() == 256 || ret.index.size() == 256)
-                        {
-                            *parg = argtype_t::mem256;
-                        }
-                        else if (ret.base.size() == 128 || ret.index.size() == 128)
-                        {
-                            *parg = argtype_t::mem128;
-                        }
-                        else if (ret.base.size() == 64 || ret.index.size() == 64)
-                        {
-                            *parg = argtype_t::mem64;
-                        }
-                        else
-                        {
-                            *parg = argtype_t::mem32;
-                        }
+                        else return __error_msg(errors::assembler::invalid_indirect_address_scheme, "Addressing: "_s + to_string(iter->value) + " is invalid, no format match found");
+                        *parg = argtype_t::mem;
                     }
                     else
                     {
@@ -281,7 +406,8 @@ namespace cgengine
                 register_t reg(iter->value);
                 if (reg == register_t::invalid)
                 {
-                    if (auto label = labels.find(to_string(iter->value)); label != labels.end())
+                    string name = to_string(iter->value);
+                    if (auto label = labels.find(name); label != labels.end())
                     {
                         pinstruction->opcode.flags |= opcode_flags_t::label;
 
@@ -302,6 +428,12 @@ namespace cgengine
                         {
                             *parg = argtype_t::imm64;
                         }
+                        return ret;
+                    }
+                    else if (auto ptr = linkmap().find(name); ptr != linkmap().end())
+                    {
+                        *parg = argtype_t::imm64;
+                        ret.imm = (uint64_t)ptr->second;
                         return ret;
                     }
                     return __error_msg(errors::assembler::invalid_argument, "Argument "_s + to_string(iter->value) + " not recognized");
@@ -331,7 +463,7 @@ namespace cgengine
 
             return ret;
         }
-        optional<instruction_t> parse_instruction(nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, umap<string, int64_t>& labels) noexcept
+        optional<instruction_t> parse_instruction(nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, umap<string, int64_t>& labels, umap<string, data_info>& data) noexcept
         {
             instruction_t ret;
             if (iter->value.size >= 16)
@@ -365,7 +497,7 @@ namespace cgengine
                     }
 
                     argnames[argcount] = iter->value.view();
-                    __checkedinto(ret.args[argcount], parse_argument(&ret, &ret.signature.types[argcount], iter, end, pos, labels));
+                    __checkedinto(ret.args[argcount], parse_argument(&ret, &ret.signature.types[argcount], iter, end, pos, labels, data));
                     ++argcount;
 
                     if (iter->delimiter == ',')
@@ -453,7 +585,8 @@ namespace cgengine
                     for (int i = 0; i < 4; ++i)
                     {
                         if (test.types[i].operand_size() != ret.signature.types[i].operand_size()
-                            && ret.signature.types[i] != argtype_t::imm8)
+                            && ret.signature.types[i] != argtype_t::imm8
+                            && ret.signature.types[i] != argtype_t::mem)
                         {
                             valid_overload = false;
                             break;
@@ -466,36 +599,33 @@ namespace cgengine
             return ret;
         }
 
-
-        struct flags
-        {
-            enum vt
-            {
-                __none = 0,
-                __export = 0b00000001,
-                __proc = 0b00000010,
-            } value;
-            __enum(flags);
-            __enumflags(flags);
-        };
-
         _executeinline optional<asmexe> assemble(const buffer<char>& code) noexcept
         {
             buffervec<uint8_t> ret;
             umap<string, int64_t> labels;
+            umap<string, data_info> data;
 
             json::token asmmeta;
             
+            data_type ctype = data_type::__uint8_t;
+            string declname;
 
             flags cflags = flags::__none;
 
             nextany_tokenizer tokenizer;
-            tokenizer.add(" \n\r,");
+            single_tokenizer brackettok;
+            tokenizer.add(" \n\r,{}\"\\");
             tokenizer.set(code);
             auto b = tokenizer.begin();
             auto e = tokenizer.end();
             while (clear_whitespace(b, e))
             {
+                if (b->value.size > 0 && b->value[0] == '#')
+                {
+                    if (!clear_line(b, e)) break;
+                    else continue;
+                }
+
                 if (b->value == "__export")
                 {
                     cflags |= flags::__export;
@@ -505,6 +635,226 @@ namespace cgengine
                 {
                     cflags |= flags::__proc;
                     ++b;
+                }
+                else if (ctype = data_type(b->value); ctype != data_type::__none)
+                {
+                    if (cflags.has(flags::__proc))
+                    {
+                        return __error_msg(errors::assembler::invalid_instruction, "__proc specifier MUST precede a label and not data");
+                    }
+
+                    ++b;
+                    if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "");
+                    const string name = to_string(b->value);
+
+                    data[name] = {
+                        .type = ctype,
+                        .rip = ret.size()
+                    };
+
+                    if (cflags.has(flags::__export))
+                    {
+                        asmmeta[s("export-data")][name] = json::token{
+                            { "rip", ret.size() }
+                        };
+                    }
+                    cflags.clear(flags::__export);
+
+                    ++b;
+                    if (clear_whitespace(b, e))
+                    {
+                        if (b->value == "=")
+                        {
+                            ++b;
+                            if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` has assignment operator, missing value");
+                            __checked(ctype.parse(ret, b, e));
+                            ++b;
+                        }
+                        else
+                        {
+                            __checked(ctype.reserve(ret));
+                        }
+                    }
+                }
+                else if (brackettok.set(b->value, '[') && data_type(brackettok.value()) != data_type::__none)
+                {
+                    data_type type(brackettok.value());
+                    if (!++brackettok) return __error_msg(errors::assembler::data_declaration_incomplete, "Array declaration must include element count");
+
+                    brackettok.set(brackettok.value(), ']');
+                    if (brackettok.value().size == 0)
+                    {
+                        ++b;
+                        if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data declaration must include a name");
+                        const string name = to_string(b->value);
+
+                        if (cflags.has(flags::__export))
+                        {
+                            asmmeta[s("export-data")][name] = json::token{
+                                { "rip", ret.size() }
+                            };
+                        }
+                        cflags.clear(flags::__export);
+
+                        ++b;
+                        if (!clear_whitespace(b, e) || b->value[0] != '=') return __error_msg(errors::assembler::data_declaration_incomplete, "Array declarations without a count specifier must include an initializer");
+
+                        ++b;
+                        if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` has assignment operator, missing value");
+
+                        if (b->delimiter == '"')
+                        {
+                            int64_t rip = ret.size();
+                            uint32_t count = 0;
+                            bool escaped = false;
+                            do
+                            {
+                                if (++b == e) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "`: Unterminated string literal");
+
+                                if (escaped)
+                                {
+                                    if (b->value.size == 0)
+                                    {
+                                        if (b->delimiter == '"')
+                                        {
+                                            ++count;
+                                            ret.push('"');
+                                        }
+                                        else if (b->delimiter == '\\')
+                                        {
+                                            ++count;
+                                            ret.push('\\');
+                                        }
+                                        else
+                                        {
+                                            return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "`: Invalid escape sequence \\" + b->delimiter);
+                                        }
+                                        escaped = false;
+                                    }
+                                    else
+                                    {
+                                        switch (b->value[0])
+                                        {
+                                        case 't': ++count; ret.push('\t'); break;
+                                        case 'n': ++count; ret.push('\n'); break;
+                                        case '0': ++count; ret.push('\0'); break;
+                                        default: return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "`: Invalid escape sequence \\" + b->value[0]);
+                                        }
+
+                                        if (b->value.size > 1)
+                                        {
+                                            count += (uint32_t)(b->value.size - 1);
+                                            ret.push(b->value.offset_view(1));
+                                        }
+
+                                        if (b->delimiter == '\\')
+                                        {
+                                            escaped = true;
+                                        }
+                                        else if (b->delimiter == '"')
+                                        {
+                                            break;
+                                        }
+                                        else
+                                        {
+                                            escaped = false;
+                                            ++count;
+                                            ret.push(b->delimiter);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    if (b->value.size > 0)
+                                    {
+                                        count += (uint32_t)b->value.size;
+                                        ret.push(b->value);
+                                    }
+
+                                    if (b->delimiter == '\\')
+                                    {
+                                        escaped = true;
+                                    }
+                                    else if (b->delimiter == '"')
+                                    {
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        ++count;
+                                        ret.push(b->delimiter);
+                                    }
+                                }
+                            } while (true);
+
+                            data[name] = {
+                                .type = type,
+                                .count = count,
+                                .rip = rip
+                            };
+                        }
+                        else
+                        {
+                            if (b->delimiter != '{') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
+
+                            //for (uint32_t i = 0; i < count; ++i)
+                            //{
+                            //    if (!clear_whitespace(++b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` initialization does not contain enough elements. Count=" + i);
+                            //    __checked(type.parse(ret, b, e));
+                            //}
+                            //if (!clear_whitespace(++b, e) || b->delimiter != '}') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
+
+                        }
+                        ++b;
+                    }
+                    else
+                    {
+                        uint32_t count;
+                        __checkedinto_msg(count, parse::uinteger32trim(brackettok.value()), "Array declaration must include element count");
+
+                        ++b;
+                        if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data declaration must include a name");
+                        const string name = to_string(b->value);
+
+                        data[name] = {
+                            .type = type,
+                            .count = count,
+                            .rip = ret.size()
+                        };
+
+                        if (cflags.has(flags::__export))
+                        {
+                            asmmeta[s("export-data")][name] = json::token{
+                                { "rip", ret.size() }
+                            };
+                        }
+                        cflags.clear(flags::__export);
+
+
+                        ++b;
+                        if (clear_whitespace(b, e))
+                        {
+                            if (b->value == "=")
+                            {
+                                ++b;
+                                if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` has assignment operator, missing value");
+                                if (b->delimiter != '{') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
+
+                                for (uint32_t i = 0; i < count; ++i)
+                                {
+                                    if (!clear_whitespace(++b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` initialization does not contain enough elements. Count=" + i);
+                                    __checked(type.parse(ret, b, e));
+                                }
+                                if (!clear_whitespace(++b, e) || b->delimiter != '}') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
+
+                                ++b;
+                            }
+                            else
+                            {
+                                __checked(type.reserve(ret));
+                            }
+                        }
+                    }
                 }
                 else
                 {
@@ -539,7 +889,7 @@ namespace cgengine
                     }
 
                     instruction_t instruction;
-                    __checkedinto(instruction, parse_instruction(b, e, ret.size(), labels));
+                    __checkedinto(instruction, parse_instruction(b, e, ret.size(), labels, data));
                     __checked(instruction.emit(ret));
                 }
             }

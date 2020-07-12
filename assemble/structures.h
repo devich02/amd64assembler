@@ -18,6 +18,7 @@ namespace cgengine
             _inline error invalid_indirect_address_scheme(error_scope::cgengine, 120003, "InvalidIndirectAddressScheme");
             _inline error instruction_overload_not_found(error_scope::cgengine, 120003, "InstructionOverloadNotFound");
             _inline error instruction_incomplete(error_scope::cgengine, 120004, "InstructionIncomplete");
+            _inline error data_declaration_incomplete(error_scope::cgengine, 120005, "DataDeclarationIncomplete");
         }
     }
 
@@ -687,9 +688,10 @@ namespace cgengine
                     register_direct = 0b11,
 
                     register_indirect = 0b00,
-                    indirect_disp32 = 0b00,
-                    indirect_rbp_disp8 = 0b01,
-                    indirect_rbp_disp32 = 0b10
+                    disp32 = 0b00,
+                    rip_relative = 0b00,
+                    indirect_disp8 = 0b01,
+                    indirect_disp32 = 0b10
                 } value;
 
                 mode_t(uint8_t mode) noexcept : value((vt)mode) {}
@@ -953,24 +955,26 @@ namespace cgengine
             enum vt
             {
                 unused = 0,
-                EAX = 0b10000000,
-                RAX = EAX + 1,
-                reg32 =     EAX + 2,
-                mem32 =     EAX + 3,
-                regmem32 =  EAX + 4,
-                reg64 =     EAX + 5,
-                mem64 =     EAX + 6,
-                regmem64 =  EAX + 7,
-                reg128 =    EAX + 8,
-                mem128 =    EAX + 9,
-                regmem128 = EAX + 10,
-                reg256 =    EAX + 11,
-                mem256 =    EAX + 12,
-                regmem256 = EAX + 13,
-                imm8 = 0b00010000,
-                imm16 = imm8 + 1,
-                imm32 = imm8 + 2,
-                imm64 = imm8 + 3
+                EAX,
+                RAX,
+                reg32,
+                reg64,
+                reg128,
+                reg256,
+                regmem32,
+                regmem64,
+                regmem128,
+                regmem256,
+                mem8,
+                mem32,
+                mem64,
+                mem128,
+                mem256,
+                mem,
+                imm8,
+                imm16,
+                imm32,
+                imm64
             } value;
 
             __enum(argtype_t);
@@ -985,6 +989,7 @@ namespace cgengine
                 case regmem64:
                 case regmem128:
                 case regmem256:
+                case mem8:
                 case mem32:
                 case mem64:
                 case mem128:
@@ -997,6 +1002,7 @@ namespace cgengine
                 case imm16:
                 case imm32:
                 case imm64:
+                case mem:
                     return true;
                 }
                 return false;
@@ -1011,7 +1017,27 @@ namespace cgengine
 
             _executeinline argtype_t& operator++() noexcept
             {
-                value = (vt)(((int32_t)value) + 1);
+                switch (value)
+                {
+                case EAX: value = reg32; break;
+                case RAX: value = reg64; break;
+                case reg32:  case mem32: value = regmem32; break;
+                case reg64:  case mem64: value = regmem64; break;
+                case reg128: case mem128: value = regmem128; break;
+                case reg256: case mem256: value = regmem256; break;
+
+                case regmem32:
+                case regmem64:
+                case regmem128:
+                case regmem256:
+                    value = mem; break;
+
+                case imm8: value = imm32; break;
+                case imm32: value = imm64; break;
+                default:
+                    value = unused;
+                }
+
                 return *this;
             }
 
@@ -1025,7 +1051,7 @@ namespace cgengine
             }
             _executeinline bool is_mem() const noexcept
             {
-                return value == mem32 || value == mem64 || value == mem128 || value == mem256;
+                return value == mem32 || value == mem64 || value == mem128 || value == mem256 || value == mem8 || value == mem;
             }
             _executeinline bool is_ax() const noexcept
             {
@@ -1033,7 +1059,7 @@ namespace cgengine
             }
             _executeinline bool is_modrm() const noexcept
             {
-                return value >= reg32 && value <= regmem256;
+                return is_reg() || is_regmem() || is_mem();
             }
             _executeinline bool is_immediate() const noexcept
             {
@@ -1172,7 +1198,7 @@ namespace cgengine
             int64_t     instruction_length;
 
         private:
-            bool compute_modrmsib(argtype_t type, argument_t arg, modrm_t& target_modrm, sib_t& target_sib, uint32_t* sibdisp)
+            bool compute_modrmsib(argtype_t type, argument_t arg, modrm_t& target_modrm, sib_t& target_sib, uint32_t* sibdisp, bool* riprelative)
             {
                 if (!type.is_modrm()) return false;
 
@@ -1197,8 +1223,15 @@ namespace cgengine
                     {
                         target_modrm.rm = register_code_t(arg.reg);
 
+                        // rip
+                        if (target_modrm.mod == modrm_t::mode_t::rip_relative)
+                        {
+                            *riprelative = true;
+                            *sibdisp = arg.disp;
+                            return false;
+                        }
                         // sib indicator
-                        if (target_modrm.mod != modrm_t::mode_t::register_direct
+                        else if (target_modrm.mod != modrm_t::mode_t::register_direct
                             && target_modrm.rm == 0b100)
                         {
                             target_sib.base = 0b100; // rSP
@@ -1214,7 +1247,8 @@ namespace cgengine
 
                         // bp base
                         if (target_modrm.mod != modrm_t::mode_t::register_direct
-                            && arg.base == register_t::RBP || arg.base == register_t::EBP)
+                            && (arg.base == register_t::RBP || arg.base == register_t::EBP)
+                            && (arg.index == register_t::RSP || arg.index == register_t::ESP))
                         {
                             target_modrm.rm = 0b101;
                             return false;
@@ -1258,8 +1292,9 @@ namespace cgengine
                 sib_t   sib;
 
                 uint32_t sib_disp = 0;
-                bool needs_sib = compute_modrmsib(type1, arg1, modrm, sib, &sib_disp)
-                    || compute_modrmsib(type2, arg2, modrm, sib, &sib_disp);
+                bool riprelative = false;
+                bool needs_sib = compute_modrmsib(type1, arg1, modrm, sib, &sib_disp, &riprelative)
+                              || compute_modrmsib(type2, arg2, modrm, sib, &sib_disp, &riprelative);
 
                 if (opcode.flags.has(opcode_flags_t::regopcode_ext))
                 {
@@ -1278,12 +1313,20 @@ namespace cgengine
                         else if (modrm.mod == 0b10 && !assembly.push(sib_disp)) return __error(errors::out_of_memory);
                     }
                 }
+                else if (riprelative)
+                {
+                    uint32_t ripdisp = (uint32_t)(((int64_t)sib_disp) - (assembly.size() - instruction_start) - (4));
+
+                    if (!assembly.push(ripdisp)) return __error(errors::out_of_memory);
+                }
                 else if (modrm.mod != 0b11 && modrm.mod != 0b00 && modrm.rm == 0b101)
                 {
                     // base + offset addressing, bp is the base
                     if (modrm.mod == 0b01 && !assembly.push((uint8_t)sib_disp)) return __error(errors::out_of_memory);
                     else if (modrm.mod == 0b10 && !assembly.push(sib_disp)) return __error(errors::out_of_memory);
                 }
+
+
 
                 return error();
             }
