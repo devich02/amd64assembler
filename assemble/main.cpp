@@ -97,7 +97,14 @@ namespace cgengine
             __checkedinto(assembly, assemble(data));
 
 
-            printf("asdfasdf, asdfasdf\n");
+            volatile int x = 0;
+            volatile int y = 8;
+
+            if (x > 4 && y < 3)
+            {
+                volatile int b = 0;
+                ++b;
+            }
 
 
 

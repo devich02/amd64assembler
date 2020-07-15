@@ -1107,6 +1107,8 @@ namespace cgengine
 
             // immediates
             uint64_t imm;
+            bool islabel = false;
+            string label;
 
             _executeinline bool is_reg_ex() const noexcept
             {
@@ -1269,12 +1271,20 @@ namespace cgengine
                 __assert(false);
                 return false;
             }
-            error apply_imm(buffervec<uint8_t>& assembly, argtype_t type, const argument_t& arg) noexcept
+            error apply_imm(buffervec<uint8_t>& assembly, umap<string, vector<int64_t>>& delay_labels, argtype_t type, const argument_t& arg) noexcept
             {
                 uint64_t imm = arg.imm;
-                if (opcode.flags.has(opcode_flags_t::label))
+                if (arg.islabel)
                 {
-                    imm = (uint64_t)(((int64_t)arg.imm) - (assembly.size() - instruction_start) - (type.operand_size() >> 3));
+                    if (arg.imm == 0)
+                    {
+                        imm = 0;
+                        delay_labels[arg.label].push_back(assembly.size());
+                    }
+                    else
+                    {
+                        imm = (uint64_t)(((int64_t)arg.imm) - (assembly.size() - instruction_start) - (type.operand_size() >> 3));
+                    }
                 }
 
                 if (type.is_immediate())
@@ -1341,7 +1351,7 @@ namespace cgengine
             }
         public:
 
-            error emit(buffervec<uint8_t>& assembly) noexcept
+            error emit(buffervec<uint8_t>& assembly, umap<string, vector<int64_t>>& delay_labels) noexcept
             {
                 instruction_start = assembly.size();
 
@@ -1471,7 +1481,7 @@ namespace cgengine
                 }
 
                 for (int i = 0; i < 4; ++i)
-                    __checked(apply_imm(assembly, signature.types[i], args[i]));
+                    __checked(apply_imm(assembly, delay_labels, signature.types[i], args[i]));
 
                 instruction_length = assembly.size() - instruction_start;
 

@@ -25,6 +25,13 @@ namespace cgengine
                 other.pexecutable = nullptr;
             }
             __move(asmexe);
+            ~asmexe()
+            {
+                if (pexecutable != nullptr)
+                {
+                    VirtualFree(pexecutable, 0, MEM_RELEASE);
+                }
+            }
 
             _executeinline void* operator[](__referencestring const string& fnname) const noexcept
             {
@@ -46,15 +53,15 @@ namespace cgengine
             enum vt : uint32_t
             {
                 __none = 0,
-                __uint8_t  =       0xFFFFFFFF,
-                __uint32_t =       0xFFFFFFFF - 1,
-                __uint64_t =       0xFFFFFFFF - 2,
-                __int8_t =         0xFFFFFFFF - 3,
-                __int32_t =        0xFFFFFFFF - 4,
-                __int64_t =        0xFFFFFFFF - 5,
+                __uint8_t = 0xFFFFFFFF,
+                __uint32_t = 0xFFFFFFFF - 1,
+                __uint64_t = 0xFFFFFFFF - 2,
+                __int8_t = 0xFFFFFFFF - 3,
+                __int32_t = 0xFFFFFFFF - 4,
+                __int64_t = 0xFFFFFFFF - 5,
                 __single_float_t = 0xFFFFFFFF - 6,
                 __double_float_t = 0xFFFFFFFF - 7,
-                __data_t
+                __data_t = 0xFFFFFFFF - 8
             } value;
             __enum(data_type);
             data_type(const buffer<char>& name) noexcept :
@@ -68,7 +75,7 @@ namespace cgengine
                 else if (name == "__int64") value = __int64_t;
                 else if (name == "__single_float") value = __single_float_t;
                 else if (name == "__double_float") value = __double_float_t;
-                else if (name == "__data_t") value = __data_t;
+                else if (name == "__data") value = __data_t;
             }
 
             error parse(buffervec<uint8_t>& assembly, nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e) const noexcept
@@ -79,7 +86,7 @@ namespace cgengine
                 double vd;
                 switch (value)
                 {
-                case __uint8_t: 
+                case __uint8_t:
                     __checkedinto(vui64, parse::uinteger64(b->value.view<uint8_t>()));
                     if (vui64 >= 256)
                     {
@@ -141,7 +148,7 @@ namespace cgengine
                     __checkedinto(vd, parse::single(b->value.view<uint8_t>()));
                     assembly.push(vd);
                     break;
-                    
+
 
                 default: return __error_msg(errors::assembler::invalid_argument, "Data type is invalid");
                 }
@@ -173,7 +180,7 @@ namespace cgengine
             {
                 switch (value)
                 {
-                case __uint8_t: case __int8_t: return argtype_t::mem8;
+                case __uint8_t: case __int8_t: case __data_t: return argtype_t::mem8;
                 case __uint32_t: case __int32_t: case __single_float_t: return argtype_t::mem32;
                 case __uint64_t: case __int64_t: case __double_float_t: return argtype_t::mem64;
                 }
@@ -191,17 +198,22 @@ namespace cgengine
         {
             enum vt
             {
-                __none   = 0,
+                __none = 0,
                 __export = 0b00000001,
-                __proc   = 0b00000010,
-                __data   = 0b00000100,
+                __proc = 0b00000010,
+                __data = 0b00000100,
             } value;
             __enum(flags);
             __enumflags(flags);
         };
 
+        struct delay_resolve
+        {
+            string label;
 
-        bool clear_whitespace_inline(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
+        };
+
+        _inline bool clear_whitespace_inline(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
         {
             while (b->value.size == 0)
             {
@@ -214,15 +226,16 @@ namespace cgengine
             }
             return true;
         }
-        bool clear_whitespace(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
+        _inline bool clear_whitespace(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
         {
+            if (b == e) return false;
             while (b->value.size == 0 && (b->delimiter == ' ' || b->delimiter == '\n' || b->delimiter == '\r' || b->delimiter == '\0'))
             {
                 if (++b == e) return false;
             }
             return true;
         }
-        bool clear_line(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
+        _inline bool clear_line(nextany_tokenizer::const_iterator_t& b, const nextany_tokenizer::const_iterator_t& e)
         {
             while (b->value.size != 0 || b->delimiter != '\n')
             {
@@ -231,7 +244,7 @@ namespace cgengine
             return (++b != e);
         }
 
-        optional<argument_t> parse_argument(instruction_t* pinstruction, argtype_t* parg, nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, const umap<string, int64_t>& labels, umap<string, data_info>& data)
+        _inline optional<argument_t> parse_argument(instruction_t* pinstruction, argtype_t* parg, nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, const umap<string, int64_t>& labels, umap<string, data_info>& data)
         {
             argument_t ret;
 
@@ -281,16 +294,16 @@ namespace cgengine
                 }
 
             }
-            else if (auto mem = data.find(string(iter->value.ptr + 1, iter->value.ptr + iter->value.size - 1)); mem != data.end())
-            {
-                *parg = mem->second.type.argtype();
-                ret.mode = modrm_t::mode_t::rip_relative;
-                ret.reg = register_t::RBP;
-                *((int64_t*)&ret.disp) = mem->second.rip - pos;
-            }
             else if (iter->value[0] == '[')
             {
-                if (auto reg = register_t(buffer<char>::from_ptr(iter->value.ptr + 1, iter->value.size - 2)); reg != register_t::invalid)
+                if (auto mem = data.find(string(iter->value.ptr + 1, iter->value.ptr + iter->value.size - 1)); mem != data.end())
+                {
+                    *parg = mem->second.type.argtype();
+                    ret.mode = modrm_t::mode_t::rip_relative;
+                    ret.reg = register_t::RBP;
+                    *((int64_t*)&ret.disp) = mem->second.rip - pos;
+                }
+                else if (auto reg = register_t(buffer<char>::from_ptr(iter->value.ptr + 1, iter->value.size - 2)); reg != register_t::invalid)
                 {
                     if (reg == register_t::RBP || reg == register_t::EBP)
                     {
@@ -409,23 +422,21 @@ namespace cgengine
                     string name = to_string(iter->value);
                     if (auto label = labels.find(name); label != labels.end())
                     {
-                        pinstruction->opcode.flags |= opcode_flags_t::label;
+                        ret.islabel = true;
 
-                        *((int64_t*)&ret.imm) = label->second - pos;
-                        if (std::numeric_limits<uint8_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint8_t>::max())
+                        int64_t voff = label->second - pos;
+                        *((int64_t*)&ret.imm) = voff;
+                        if (std::numeric_limits<int8_t>::lowest() <= voff && voff <= std::numeric_limits<int8_t>::max())
                         {
                             *parg = argtype_t::imm8;
                         }
-                        else if (std::numeric_limits<uint16_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint16_t>::max())
-                        {
-                            *parg = argtype_t::imm16;
-                        }
-                        else if (std::numeric_limits<uint32_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint32_t>::max())
+                        else if (std::numeric_limits<int32_t>::lowest() <= voff && voff <= std::numeric_limits<int32_t>::max())
                         {
                             *parg = argtype_t::imm32;
                         }
                         else
                         {
+                            __assert(false);
                             *parg = argtype_t::imm64;
                         }
                         return ret;
@@ -434,6 +445,14 @@ namespace cgengine
                     {
                         *parg = argtype_t::imm64;
                         ret.imm = (uint64_t)ptr->second;
+                        return ret;
+                    }
+                    else
+                    {
+                        ret.islabel = true;
+                        *parg = argtype_t::imm32;
+                        ret.imm = 0;
+                        ret.label = name;
                         return ret;
                     }
                     return __error_msg(errors::assembler::invalid_argument, "Argument "_s + to_string(iter->value) + " not recognized");
@@ -463,7 +482,7 @@ namespace cgengine
 
             return ret;
         }
-        optional<instruction_t> parse_instruction(nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, umap<string, int64_t>& labels, umap<string, data_info>& data) noexcept
+        _inline optional<instruction_t> parse_instruction(nextany_tokenizer::const_iterator_t& iter, const nextany_tokenizer::const_iterator_t& end, int64_t pos, umap<string, int64_t>& labels, umap<string, data_info>& data) noexcept
         {
             instruction_t ret;
             if (iter->value.size >= 16)
@@ -508,7 +527,7 @@ namespace cgengine
 
                 } while (true);
             }
-            ++iter;
+            if (iter != end) ++iter;
 
             if (argcount == 0)
                 if (auto emptylabel = labels.find(s("")); emptylabel != labels.end())
@@ -604,9 +623,10 @@ namespace cgengine
             buffervec<uint8_t> ret;
             umap<string, int64_t> labels;
             umap<string, data_info> data;
+            umap<string, vector<int64_t>> delay_labels;
 
             json::token asmmeta;
-            
+
             data_type ctype = data_type::__uint8_t;
             string declname;
 
@@ -614,11 +634,11 @@ namespace cgengine
 
             nextany_tokenizer tokenizer;
             single_tokenizer brackettok;
-            tokenizer.add(" \n\r,{}\"\\");
+            tokenizer.add(" \n\r,{}\"\\=");
             tokenizer.set(code);
             auto b = tokenizer.begin();
             auto e = tokenizer.end();
-            while (clear_whitespace(b, e))
+            while (b != e && clear_whitespace(b, e))
             {
                 if (b->value.size > 0 && b->value[0] == '#')
                 {
@@ -638,6 +658,7 @@ namespace cgengine
                 }
                 else if (ctype = data_type(b->value); ctype != data_type::__none)
                 {
+                    if (ctype == data_type::__data_t) return __error_msg(errors::assembler::data_declaration_incomplete, "__data declaractions must be `Array` types and must include an element count which defines the size of the block");
                     if (cflags.has(flags::__proc))
                     {
                         return __error_msg(errors::assembler::invalid_instruction, "__proc specifier MUST precede a label and not data");
@@ -660,10 +681,10 @@ namespace cgengine
                     }
                     cflags.clear(flags::__export);
 
-                    ++b;
+                    if (b->delimiter != '=') ++b;
                     if (clear_whitespace(b, e))
                     {
-                        if (b->value == "=")
+                        if (b->delimiter == '=')
                         {
                             ++b;
                             if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` has assignment operator, missing value");
@@ -679,10 +700,28 @@ namespace cgengine
                 else if (brackettok.set(b->value, '[') && data_type(brackettok.value()) != data_type::__none)
                 {
                     data_type type(brackettok.value());
-                    if (!++brackettok) return __error_msg(errors::assembler::data_declaration_incomplete, "Array declaration must include element count");
+                    ++brackettok;
 
                     brackettok.set(brackettok.value(), ']');
-                    if (brackettok.value().size == 0)
+                    if (type == data_type::__data_t)
+                    {
+                        uint32_t count;
+                        __checkedinto_msg(count, parse::uinteger32trim(brackettok.value()), "__data type declarations must include element count");
+
+                        ++b;
+                        if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data declaration must include a name");
+                        string name = to_string(b->value);
+
+                        data[name] = {
+                            .type = type,
+                            .count = count,
+                            .rip = ret.size()
+                        };
+
+                        if (!ret.push_empty(count)) return __error(errors::out_of_memory);
+                        ++b;
+                    }
+                    else if (brackettok.value().size == 0)
                     {
                         ++b;
                         if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data declaration must include a name");
@@ -696,8 +735,8 @@ namespace cgengine
                         }
                         cflags.clear(flags::__export);
 
-                        ++b;
-                        if (!clear_whitespace(b, e) || b->value[0] != '=') return __error_msg(errors::assembler::data_declaration_incomplete, "Array declarations without a count specifier must include an initializer");
+                        if (b->delimiter != '=') ++b;
+                        if (!clear_whitespace(b, e) || b->delimiter != '=') return __error_msg(errors::assembler::data_declaration_incomplete, "Array declarations without a count specifier must include an initializer");
 
                         ++b;
                         if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` has assignment operator, missing value");
@@ -796,14 +835,7 @@ namespace cgengine
                         else
                         {
                             if (b->delimiter != '{') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
-
-                            //for (uint32_t i = 0; i < count; ++i)
-                            //{
-                            //    if (!clear_whitespace(++b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` initialization does not contain enough elements. Count=" + i);
-                            //    __checked(type.parse(ret, b, e));
-                            //}
-                            //if (!clear_whitespace(++b, e) || b->delimiter != '}') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
-
+                            __assert(false);
                         }
                         ++b;
                     }
@@ -814,7 +846,7 @@ namespace cgengine
 
                         ++b;
                         if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data declaration must include a name");
-                        const string name = to_string(b->value);
+                        string name = to_string(b->value);
 
                         data[name] = {
                             .type = type,
@@ -830,11 +862,10 @@ namespace cgengine
                         }
                         cflags.clear(flags::__export);
 
-
-                        ++b;
+                        if (b->delimiter != '=') ++b;
                         if (clear_whitespace(b, e))
                         {
-                            if (b->value == "=")
+                            if (b->delimiter == '=')
                             {
                                 ++b;
                                 if (!clear_whitespace(b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` has assignment operator, missing value");
@@ -845,7 +876,7 @@ namespace cgengine
                                     if (!clear_whitespace(++b, e)) return __error_msg(errors::assembler::data_declaration_incomplete, "Data name `" + name + "` initialization does not contain enough elements. Count=" + i);
                                     __checked(type.parse(ret, b, e));
                                 }
-                                if (!clear_whitespace(++b, e) || b->delimiter != '}') return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
+                                if (b->delimiter != '}' && (!clear_whitespace(++b, e) && b->delimiter == '}')) return __error_msg(errors::assembler::data_declaration_incomplete, "Array types' (`" + name + "`) assignment must be enclosed in curly braces: `{` data[,..] `}`");
 
                                 ++b;
                             }
@@ -878,6 +909,16 @@ namespace cgengine
                             cflags.clear(flags::__proc | flags::__export);
 
                             labels[label] = ret.size();
+
+                            if (auto f = delay_labels.find(label); f != delay_labels.end())
+                            {
+                                for (auto p : f->second)
+                                {
+                                    *((int32_t*)(ret.ptr() + p)) = ret.size() - p - 4;
+                                }
+                                delay_labels.erase(f);
+                            }
+
                             ++b;
                             continue;
                         }
@@ -890,10 +931,23 @@ namespace cgengine
 
                     instruction_t instruction;
                     __checkedinto(instruction, parse_instruction(b, e, ret.size(), labels, data));
-                    __checked(instruction.emit(ret));
+                    __checked(instruction.emit(ret, delay_labels));
                 }
             }
-            
+
+            if (delay_labels.size() > 0)
+            {
+                string invalid_labels;
+                for (const auto& l : delay_labels)
+                {
+                    invalid_labels += l.first + ", ";
+                }
+                invalid_labels.pop_back();
+                invalid_labels.pop_back();
+
+                return __error_msg(errors::assembler::invalid_argument, "Unresolved labels or invalid arguments: "_s + invalid_labels);
+            }
+
             asmexe _ret;
 
             _ret.asmmeta = std::move(asmmeta);
@@ -908,7 +962,7 @@ namespace cgengine
         {
             return assemble(code.view<char>());
         }
-        optional<asmexe> assemble(const string& code) noexcept
+        _inline optional<asmexe> assemble(const string& code) noexcept
         {
             return assemble(buffer<char>::from_ptr(code.c_str(), code.length()));
         }

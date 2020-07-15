@@ -1421,7 +1421,7 @@ namespace cgengine
                     { { "idiv", argtype_t::regmem64 },
                       {
                           0xF7,
-                          "idiv divisor | Signed Divide | Perform unsigned division of RDX:RAX by the contents of a 64-bit register or memory location and store the quotient in RAX and the remainder in RDX. To avoid overflow problems, precede this instruction with a CBW, CWD, CDQ, or CQO instruction to sign-extend the dividend.",
+                          "idiv divisor | Signed Divide | Perform signed division of RDX:RAX by the contents of a 64-bit register or memory location and store the quotient in RAX and the remainder in RDX. To avoid overflow problems, precede this instruction with a CBW, CWD, CDQ, or CQO instruction to sign-extend the dividend.",
                           opcode_flags_t::regopcode_ext,
                           {
                             ._f_regopcode_ext = 7
@@ -2026,9 +2026,9 @@ namespace cgengine
 
                     { { "mov",  argtype_t::regmem32, argtype_t::reg32    }, { 0x89, ("mov dst, src | Move | Move the contents of a 32-bit register to a 32-bit destination register or memory operand") } },
                     { { "mov",  argtype_t::regmem64, argtype_t::reg64    }, { 0x89, ("mov dst, src | Move | Move the contents of a 64-bit register to a 64-bit destination register or memory operand") } },
-                    { { "mov",  argtype_t::reg32,    argtype_t::regmem32 }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
+                    { { "mov",  argtype_t::reg32,    argtype_t::mem }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
                     { { "mov",  argtype_t::reg32,    argtype_t::mem64    }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
-                    { { "mov",  argtype_t::reg64,    argtype_t::regmem64 }, { 0x8B, ("mov dst, src | Move | Move the contents of a 64-bit register or memory to a 64-bit destination register") } },
+                    { { "mov",  argtype_t::reg64,    argtype_t::mem }, { 0x8B, ("mov dst, src | Move | Move the contents of a 64-bit register or memory to a 64-bit destination register") } },
                     { { "mov",  argtype_t::reg32,    argtype_t::imm32    }, { 0xB8, ("mov dst, src | Move | Move a 32-bit immediate value into a 32-bit register"), opcode_flags_t::register_adjusted } },
                     { { "mov",  argtype_t::reg64,    argtype_t::imm64    }, { 0xB8, ("mov dst, src | Move | Move a 64-bit immediate value into a 64-bit register"), opcode_flags_t::register_adjusted } },
                     { { "mov",  argtype_t::regmem32, argtype_t::imm32    }, { 0xC7, ("mov dst, src | Move | Move a 32-bit immediate value into a 32-bit register or memory operand") } },
@@ -2263,7 +2263,7 @@ namespace cgengine
                     { { "mul", argtype_t::regmem64 },
                       {
                           0xF7,
-                          "mul multiplicand | Unsigned Multiply | Multiplies a 32-bit register or memory operand by the contents of the EAX register and stores the result in the EDX:EAX register.",
+                          "mul multiplicand | Unsigned Multiply | Multiplies a 64-bit register or memory operand by the contents of the RAX register and stores the result in the RDX:RAX register.",
                           opcode_flags_t::regopcode_ext,
                           {
                             ._f_regopcode_ext = 4
@@ -2275,7 +2275,7 @@ namespace cgengine
                     { { "mulx", argtype_t::reg32, argtype_t::reg32, argtype_t::regmem32 },
                       {
                           0xF6,
-                          "mulx dest1, dest2, src | Multiply Unsigned | Multiplies a 32-bit register or memory operand by the contents of the EAX register and stores the result in the EDX:EAX register.",
+                          "mulx dest1, dest2, src | Multiply Unsigned | Computes the unsigned product of the specified source operand and the implicit source operand rDX. Writes the upper half of the product to the first destination and the lower half to the second. Does not affect the arithmetic flags.",
                           opcode_flags_t::requires_cpuid_lookup | opcode_flags_t::vex_extended,
                           {
                             ._f_cpuid_reqs = 1,
@@ -2296,7 +2296,7 @@ namespace cgengine
                     { { "mulx", argtype_t::reg64, argtype_t::reg64, argtype_t::regmem64 },
                       {
                           0xF6,
-                          "mulx dest1, dest2, src | Multiply Unsigned | Multiplies a 32-bit register or memory operand by the contents of the EAX register and stores the result in the EDX:EAX register.",
+                          "mulx dest1, dest2, src | Multiply Unsigned | Computes the unsigned product of the specified source operand and the implicit source operand rDX. Writes the upper half of the product to the first destination and the lower half to the second. Does not affect the arithmetic flags.",
                           opcode_flags_t::requires_cpuid_lookup | opcode_flags_t::vex_extended,
                           {
                             ._f_cpuid_reqs = 1,
