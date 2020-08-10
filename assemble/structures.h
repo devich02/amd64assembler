@@ -707,6 +707,11 @@ namespace cgengine
                     return s("<invalid>");
                 }
             };
+
+            _executeinline bool is_rip() const noexcept
+            {
+                return mod == mode_t::rip_relative && rm == 0b101;
+            }
         };
         struct sib_t
         {
@@ -978,6 +983,7 @@ namespace cgengine
             } value;
 
             __enum(argtype_t);
+            __enumtostring(argtype_t);
 
             bool valid() const noexcept
             {
@@ -1021,16 +1027,10 @@ namespace cgengine
                 {
                 case EAX: value = reg32; break;
                 case RAX: value = reg64; break;
-                case reg32:  case mem32: value = regmem32; break;
-                case reg64:  case mem64: value = regmem64; break;
-                case reg128: case mem128: value = regmem128; break;
-                case reg256: case mem256: value = regmem256; break;
-
-                case regmem32:
-                case regmem64:
-                case regmem128:
-                case regmem256:
-                    value = mem; break;
+                case reg32:  value = regmem32; break;
+                case reg64:  value = regmem64; break;
+                case reg128: value = regmem128; break;
+                case reg256: value = regmem256; break;
 
                 case imm8: value = imm32; break;
                 case imm32: value = imm64; break;
@@ -1064,6 +1064,35 @@ namespace cgengine
             _executeinline bool is_immediate() const noexcept
             {
                 return (((int32_t)value) & imm8) != 0;
+            }
+
+            const string& to_string() const noexcept
+            {
+                switch (value)
+                {
+                case unused   : return s("unused   ");
+                case EAX      : return s("EAX      ");
+                case RAX      : return s("RAX      ");
+                case reg32    : return s("reg32    ");
+                case reg64    : return s("reg64    ");
+                case reg128   : return s("reg128   ");
+                case reg256   : return s("reg256   ");
+                case regmem32 : return s("regmem32 ");
+                case regmem64 : return s("regmem64 ");
+                case regmem128: return s("regmem128");
+                case regmem256: return s("regmem256");
+                case mem8     : return s("mem8     ");
+                case mem32    : return s("mem32    ");
+                case mem64    : return s("mem64    ");
+                case mem128   : return s("mem128   ");
+                case mem256   : return s("mem256   ");
+                case mem      : return s("mem      ");
+                case imm8     : return s("imm8     ");
+                case imm16    : return s("imm16    ");
+                case imm32    : return s("imm32    ");
+                case imm64    : return s("imm64    ");
+                }
+                return s("<invalid>");
             }
         };
 
@@ -1226,7 +1255,7 @@ namespace cgengine
                         target_modrm.rm = register_code_t(arg.reg);
 
                         // rip
-                        if (target_modrm.mod == modrm_t::mode_t::rip_relative)
+                        if (target_modrm.is_rip())
                         {
                             *riprelative = true;
                             *sibdisp = arg.disp;
@@ -1303,8 +1332,8 @@ namespace cgengine
 
                 uint32_t sib_disp = 0;
                 bool riprelative = false;
-                bool needs_sib = compute_modrmsib(type1, arg1, modrm, sib, &sib_disp, &riprelative)
-                              || compute_modrmsib(type2, arg2, modrm, sib, &sib_disp, &riprelative);
+                bool needs_sib = compute_modrmsib(type1, arg1, modrm, sib, &sib_disp, &riprelative);
+                     needs_sib |= compute_modrmsib(type2, arg2, modrm, sib, &sib_disp, &riprelative);
 
                 if (opcode.flags.has(opcode_flags_t::regopcode_ext))
                 {
@@ -1450,9 +1479,9 @@ namespace cgengine
 
                     rex_t rex{
                         .b = (uint8_t)((signature.types[0].is_modrm() && args[0].is_base_ex())
-                                        || (args[0].is_reg_ex() && (signature.types[0] == argtype_t::regmem32 || signature.types[0] == argtype_t::regmem64))
+                                        || (args[0].is_reg_ex() && (signature.types[0] == argtype_t::regmem32 || signature.types[0] == argtype_t::regmem64 || signature.types[0] == argtype_t::mem))
                                         || (signature.types[1].is_modrm() && args[1].is_base_ex())
-                                        || (args[1].is_reg_ex() && (signature.types[1] == argtype_t::regmem32 || signature.types[1] == argtype_t::regmem64))
+                                        || (args[1].is_reg_ex() && (signature.types[1] == argtype_t::regmem32 || signature.types[1] == argtype_t::regmem64 || signature.types[0] == argtype_t::mem))
                                         || ((args[0].is_reg_ex() && (signature.types[0] == argtype_t::reg32 || signature.types[0] == argtype_t::reg64) && opcode.flags.has(opcode_flags_t::register_adjusted))) ? 1 : 0),
 
                         .x = (uint8_t)((signature.types[0].is_modrm() && args[0].is_index_ex()) || (signature.types[1].is_modrm() && args[1].is_index_ex()) ? 1 : 0),

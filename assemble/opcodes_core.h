@@ -9,9 +9,9 @@ namespace cgengine
 {
     namespace assembler
     {
-        _inline umap<signature_t, opcode_t, value_type_hash<signature_t>>& opcode_map()
+        _inline umap<signature_t, opcode_t, value_type_hash>& opcode_map()
         {
-            static umap<signature_t, opcode_t, value_type_hash<signature_t>>* popcodes_core = statics::get< umap<signature_t, opcode_t, value_type_hash<signature_t>>*>(_FUNC);
+            static umap<signature_t, opcode_t, value_type_hash>* popcodes_core = statics::get< umap<signature_t, opcode_t, value_type_hash>*>("cgengine::assembler::opcodes_core");
             return *popcodes_core;
         }
         namespace ___internal 
@@ -1451,7 +1451,69 @@ namespace cgengine
                       }
                     },
 
+
+                    { { "imul", argtype_t::reg32, argtype_t::regmem32 },
+                      {
+                          0x0F,
+                          "imul multiplicand | Signed Divide | Multiply the contents of a 32-bit destination register by the contents of a 32-bit register or memory operand and put the signed result in the 32-bit destination register.",
+                          opcode_flags_t::multibyte_opcode,
+                          {
+                            ._f_opcode_count = 1,
+                            ._f_opcode_extra = { 0xAF }
+                          }
+                      }
+                    },
+                    { { "imul", argtype_t::reg64, argtype_t::regmem64 },
+                      {
+                          0x0F,
+                          "imul multiplicand | Signed Divide | Multiply the contents of a 64-bit destination register by the contents of a 64-bit register or memory operand and put the signed result in the 64-bit destination register.",
+                          opcode_flags_t::multibyte_opcode,
+                          {
+                            ._f_opcode_count = 1,
+                            ._f_opcode_extra = { 0xAF }
+                          }
+                      }
+                    },
+
+
+                    { { "imul", argtype_t::reg32, argtype_t::regmem32, argtype_t::imm8 },
+                      {
+                          0x6b,
+                          "imul multiplicand | Signed Divide | Multiply the contents of a 32-bit register or memory operand by a sign-extended immediate byte and put the signed result in the 32-bit destination register."
+                      }
+                    },
+                    { { "imul", argtype_t::reg64, argtype_t::regmem64, argtype_t::imm8 },
+                      {
+                          0x6b,
+                          "imul multiplicand | Signed Divide | Multiply the contents of a 64-bit register or memory operand by a sign-extended immediate byte and put the signed result in the 64-bit destination register."
+                      }
+                    },
+
+                    { { "imul", argtype_t::reg32, argtype_t::regmem32, argtype_t::imm32 },
+                      {
+                          0x69,
+                          "imul multiplicand | Signed Divide | Multiply the contents of a 32-bit register or memory operand by a sign-extended immediate double and put the signed result in the 32-bit destination register."
+                      }
+                    },
+                    { { "imul", argtype_t::reg64, argtype_t::regmem64, argtype_t::imm32 },
+                      {
+                          0x69,
+                          "imul multiplicand | Signed Divide | Multiply the contents of a 64-bit register or memory operand by a sign-extended immediate double and put the signed result in the 64-bit destination register."
+                      }
+                    },
+
+
                     { { "inc", argtype_t::regmem32 },
+                      {
+                          0xFF,
+                          "inc dst | Increment by 1 | Adds 1 to the specified register or memory location. The CF flag is not affected, even if the operand is incremented to 0000.",
+                          opcode_flags_t::regopcode_ext,
+                          {
+                            ._f_regopcode_ext = 0
+                          }
+                      }
+                    },
+                    { { "inc", argtype_t::mem },
                       {
                           0xFF,
                           "inc dst | Increment by 1 | Adds 1 to the specified register or memory location. The CF flag is not affected, even if the operand is incremented to 0000.",
@@ -2025,14 +2087,21 @@ namespace cgengine
 
 
                     { { "mov",  argtype_t::regmem32, argtype_t::reg32    }, { 0x89, ("mov dst, src | Move | Move the contents of a 32-bit register to a 32-bit destination register or memory operand") } },
+                    { { "mov",  argtype_t::mem, argtype_t::reg32    }, { 0x89, ("mov dst, src | Move | Move the contents of a 32-bit register to a 32-bit destination register or memory operand") } },
                     { { "mov",  argtype_t::regmem64, argtype_t::reg64    }, { 0x89, ("mov dst, src | Move | Move the contents of a 64-bit register to a 64-bit destination register or memory operand") } },
+                    { { "mov",  argtype_t::mem, argtype_t::reg64    }, { 0x89, ("mov dst, src | Move | Move the contents of a 64-bit register to a 64-bit destination register or memory operand") } },
                     { { "mov",  argtype_t::reg32,    argtype_t::mem }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
                     { { "mov",  argtype_t::reg32,    argtype_t::mem64    }, { 0x8B, ("mov dst, src | Move | Move the contents of a 32-bit register or memory to a 32-bit destination register") } },
                     { { "mov",  argtype_t::reg64,    argtype_t::mem }, { 0x8B, ("mov dst, src | Move | Move the contents of a 64-bit register or memory to a 64-bit destination register") } },
+
+
                     { { "mov",  argtype_t::reg32,    argtype_t::imm32    }, { 0xB8, ("mov dst, src | Move | Move a 32-bit immediate value into a 32-bit register"), opcode_flags_t::register_adjusted } },
                     { { "mov",  argtype_t::reg64,    argtype_t::imm64    }, { 0xB8, ("mov dst, src | Move | Move a 64-bit immediate value into a 64-bit register"), opcode_flags_t::register_adjusted } },
+
                     { { "mov",  argtype_t::regmem32, argtype_t::imm32    }, { 0xC7, ("mov dst, src | Move | Move a 32-bit immediate value into a 32-bit register or memory operand") } },
+                    { { "mov",  argtype_t::mem,   argtype_t::imm32    }, { 0xC7, ("mov dst, src | Move | Move a 32-bit immediate value into a 32-bit register or memory operand") } },
                     { { "mov",  argtype_t::regmem64, argtype_t::imm32    }, { 0xC7, ("mov dst, src | Move | Move a 32-bit immediate value into a 64-bit register or memory operand") } },
+                    { { "mov",  argtype_t::mem,   argtype_t::imm32    }, { 0xC7, ("mov dst, src | Move | Move a 32-bit immediate value into a 64-bit register or memory operand") } },
 
 
                     { { "movbe", argtype_t::reg32, argtype_t::regmem32 },

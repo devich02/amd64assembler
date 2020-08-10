@@ -260,7 +260,7 @@ namespace cgengine
                     }
                     else if (std::numeric_limits<int16_t>::lowest() <= parsed && parsed <= std::numeric_limits<int16_t>::max())
                     {
-                        *parg = argtype_t::imm16;
+                        *parg = argtype_t::imm32;
                     }
                     else if (std::numeric_limits<int32_t>::lowest() <= parsed && parsed <= std::numeric_limits<int32_t>::max())
                     {
@@ -282,7 +282,7 @@ namespace cgengine
                 }
                 else if (std::numeric_limits<uint16_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint16_t>::max())
                 {
-                    *parg = argtype_t::imm16;
+                    *parg = argtype_t::imm32;
                 }
                 else if (std::numeric_limits<uint32_t>::lowest() <= ret.imm && ret.imm <= std::numeric_limits<uint32_t>::max())
                 {
@@ -505,7 +505,7 @@ namespace cgengine
 
             int32_t argcount = 0;
             buffer<char> argnames[4];
-            if (iter->delimiter != '\n' && ++iter != end && clear_whitespace_inline(iter, end))
+            if ((iter->delimiter != '\r' && iter->delimiter != '\n') && ++iter != end && clear_whitespace_inline(iter, end))
             {
 
                 do
@@ -573,8 +573,8 @@ namespace cgengine
                     ret.opcode.flags |= flags;
                     break;
                 }
-
-                if (argcount == 0) return __error_msg(errors::assembler::instruction_overload_not_found, "Could not find overload for label "_s + (test.label));
+                if (argcount == 0) 
+                    return __error_msg(errors::assembler::instruction_overload_not_found, "Could not find overload for label "_s + (test.label));
 
                 bool valid_overload = true;
                 do
@@ -592,7 +592,7 @@ namespace cgengine
                                 string err = "Could not find overload for label "_s + (test.label);
                                 for (int j = 0; j < argcount; ++j)
                                 {
-                                    err += " " + to_string(argnames[j]);
+                                    err += " " + to_string(argnames[j]) + "/" + to_string(ret.signature.types[j]);
                                 }
                                 return __error_msg(errors::assembler::instruction_overload_not_found, err);
                             }
@@ -640,6 +640,8 @@ namespace cgengine
             auto e = tokenizer.end();
             while (b != e && clear_whitespace(b, e))
             {
+                if (b == e) break;
+
                 if (b->value.size > 0 && b->value[0] == '#')
                 {
                     if (!clear_line(b, e)) break;
@@ -882,7 +884,7 @@ namespace cgengine
                             }
                             else
                             {
-                                __checked(type.reserve(ret));
+                                __checked(type.reserve(ret, count));
                             }
                         }
                     }
@@ -914,7 +916,7 @@ namespace cgengine
                             {
                                 for (auto p : f->second)
                                 {
-                                    *((int32_t*)(ret.ptr() + p)) = ret.size() - p - 4;
+                                    *((int32_t*)(ret.ptr() + p)) = (int32_t)(ret.size() - p - 4);
                                 }
                                 delay_labels.erase(f);
                             }
@@ -928,6 +930,8 @@ namespace cgengine
                     {
                         return __error_msg(errors::assembler::invalid_instruction, "__proc or __export specifiers MUST precede a label and not an instruction");
                     }
+
+                    if (b == e || !clear_whitespace(b, e)) break;
 
                     instruction_t instruction;
                     __checkedinto(instruction, parse_instruction(b, e, ret.size(), labels, data));

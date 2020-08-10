@@ -2578,6 +2578,32 @@ namespace cgengine
                     },
                     // https://www.felixcloutier.com/x86/MOVD:MOVQ.html
 
+                    { { "movd", argtype_t::reg128, argtype_t::regmem32 },
+                       {
+                          0x66,
+                          "movd xmm, r/m32 | Move Doubleword/Move Quadword | Move doubleword from <em>r/m32</em> to <em>xmm</em>.",
+                          opcode_flags_t::multibyte_opcode | opcode_flags_t::requires_cpuid_lookup | opcode_flags_t::operand64size_override,
+                          {
+                              ._f_opcode_count = 2,
+                              ._f_opcode_extra = { 0x0F,0x6E },
+                              ._f_cpuid_reqs = 1,
+                              ._f_cpuid_lookups = { &cpuid_queries()["SSE2"] }
+                          }
+                       }
+                    },
+                    { { "movd", argtype_t::reg128, argtype_t::regmem64 },
+                       {
+                          0x66,
+                          "movd xmm, r/m32 | Move Doubleword/Move Quadword | Move doubleword from <em>r/m32</em> to <em>xmm</em>.",
+                          opcode_flags_t::multibyte_opcode | opcode_flags_t::requires_cpuid_lookup | opcode_flags_t::operand64size_override,
+                          {
+                              ._f_opcode_count = 2,
+                              ._f_opcode_extra = { 0x0F,0x6E },
+                              ._f_cpuid_reqs = 1,
+                              ._f_cpuid_lookups = { &cpuid_queries()["SSE2"] }
+                          }
+                       }
+                    },
                     { { "movd", argtype_t::reg128, argtype_t::regmem128 },
                        {
                           0x66,

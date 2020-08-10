@@ -89,23 +89,120 @@ namespace cgengine
                                         pop rsi
                                         ret
     */
+
+
+        int x = 32345;
+        int y = 4234523;
+        int a = 1, b = 1, c = 1, d = 1, e = 1, g = 1, h = 1;
+
+        __declspec(noinline) int f() noexcept
+        {
+            return b;
+        }
+        __declspec(noinline) int f2() noexcept
+        {
+            return y;
+        }
+        __declspec(noinline) int f3() noexcept
+        {
+            return 0;
+        }
+
+        volatile int e1 = 0;
+        volatile int e2 = 0;
+        volatile int e3 = 0;
+
+        uint64_t* pdata;
+
+        __declspec(noinline) void f5(volatile int* pv) noexcept
+        {
+            *pv = 6;
+        }
+
+        __declspec(noinline) void f4(int* a, int* b, int* c, int* d, int* e, int* g) noexcept
+        {
+            if (*b < 0)
+                *a += 4;
+            *a -= 4;
+        }
+
         error main() noexcept
         {
             assembler::asmexe assembly;
             buffer<uint8_t> data;
-            __checkedinto(data, file::read_all(R"(C:\Users\gianc\source\repos\amd64assembler\test.asm)"));
+            //__checkedinto(data, file::read_all(R"(C:\Users\gianc\source\repos\amd64assembler\test.asm)"));
+            data = to_buffer(s(R"(
+
+
+__export __proc test:
+
+imul eax,r8d,1236
+imul ecx,r9d,4856
+add edx,eax
+add edx,ecx
+mov [rsp+16],edx
+imul eax,r8d,84966
+add edx,eax
+mov [rsp+16],edx
+
+ret
+
+
+
+
+
+
+
+
+__export __proc main:
+
+mov  rax,1083388723
+movd xmm0,rax
+
+ret
+
+
+__uint8[8] aaa
+__uint8[8] a1
+__uint8[8] b1
+__uint8[8] c1
+__uint8[8] d1
+
+__export __proc getaddr:
+
+lea rax,[aaa]
+
+ret
+
+
+__export __proc setupaddr:
+
+lea rax,[aaa]
+
+ret
+
+
+
+
+
+__export __proc setupaddrr14:
+
+lea r11,[aaa]
+
+ret
+
+
+
+__export __proc test2:
+
+mov rax,0
+mov [a1],rax
+mov [b1],rax
+mov [c1],rax
+
+ret
+)"));
             __checkedinto(assembly, assemble(data));
-
-
-            volatile int x = 0;
-            volatile int y = 8;
-
-            if (x > 4 && y < 3)
-            {
-                volatile int b = 0;
-                ++b;
-            }
-
 
 
             printf("Has ADX: %s\n", cpuid_queries()["ADX"].execute() == 1 ? "true" : "false");
@@ -132,14 +229,78 @@ namespace cgengine
             printf("Has SVM: %s\n", cpuid_queries()["SVM"].execute() == 1 ? "true" : "false");
             printf("Has PerfCtrExtCore: %s\n", cpuid_queries()["PerfCtrExtCore"].execute() == 1 ? "true" : "false");
             printf("Has TSC: %s\n", cpuid_queries()["TSC"].execute() == 1 ? "true" : "false");
+            printf("Has RDTSCP: %s\n", cpuid_queries()["RDTSCP"].execute() == 1 ? "true" : "false");
             printf("Has TscInvariant: %s\n", cpuid_queries()["TscInvariant"].execute() == 1 ? "true" : "false");
             printf("Has SysCallSysRet: %s\n", cpuid_queries()["SysCallSysRet"].execute() == 1 ? "true" : "false");
 
+            float a = 4.6f;
 
             using cf = float(*)();
-            cf c = ((cf)assembly[s("test")]);
+            using cf2 = void(*)(int* a, int* b, int* c, int* d, int* e, int* g);
+            using getaddrf = uint64_t * (*)();
 
-            float f = c();
+            cf c = ((cf)assembly[s("main")]);
+
+            float test = c();
+
+            cf2 c2 = ((cf2)assembly[s("test")]);
+            getaddrf getaddr = ((getaddrf)assembly[s("getaddr")]);
+
+            uint64_t f = c();
+
+            uint64_t f2 = c();
+
+            pdata = getaddr();
+
+            int icount = 6 * 1000000;
+            int* tdata = new int[icount];
+            for (int i = 0; i < icount; ++i)
+            {
+                tdata[i] = i;
+            }
+
+            timer tk;
+
+            uint64_t min = std::numeric_limits<uint64_t>::max();
+
+            // 98700
+            for (int i = 0; i < 1000; ++i)
+            {
+                tk.start();
+
+                for (int j = 0; j < icount; j+=6)
+                {
+                    f4( &tdata[j],
+                        &tdata[j+1],
+                        &tdata[j+2],
+                        &tdata[j+3],
+                        &tdata[j+4],
+                        &tdata[j+5]
+                        );
+                }
+                tk.stop();
+                if (tk.nanoseconds() < min) min = tk.nanoseconds();
+            }
+            printf("msvc %llu\n", min );
+
+            min = std::numeric_limits<uint64_t>::max();
+            for (int i = 0; i < 1000; ++i)
+            {
+                tk.start();
+                for (int j = 0; j < icount; j += 6)
+                {
+                    f4(&tdata[j],
+                        &tdata[j + 1],
+                        &tdata[j + 2],
+                        &tdata[j + 3],
+                        &tdata[j + 4],
+                        &tdata[j + 5]
+                    );
+                }
+                tk.stop();
+                if (tk.nanoseconds() < min) min = tk.nanoseconds();
+            }
+            printf("asm  %llu\n", min);
 
             return error();
         }
