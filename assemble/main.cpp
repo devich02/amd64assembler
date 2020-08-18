@@ -119,11 +119,18 @@ namespace cgengine
             *pv = 6;
         }
 
-        __declspec(noinline) void f4(int* a, int* b, int* c, int* d, int* e, int* g) noexcept
+        __declspec(noinline) void f4(int a, int b, int c, int d, int* e, int* f) noexcept
         {
-            if (*b < 0)
-                *a += 4;
-            *a -= 4;
+            int t1 = a - 10000;
+            int t2 = *e;
+
+            while (t1 < 0)
+            {
+                t2 += b;
+                t1 += c;
+            }
+
+            *e = t2;
         }
 
         error main() noexcept
@@ -136,14 +143,17 @@ namespace cgengine
 
 __export __proc test:
 
-imul eax,r8d,1236
-imul ecx,r9d,4856
-add edx,eax
-add edx,ecx
-mov [rsp+16],edx
-imul eax,r8d,84966
-add edx,eax
-mov [rsp+16],edx
+mov r10,[rsp+40]
+mov eax,[r10]
+_looplabel1:
+cmp ecx,0
+jle _looplabel1.else
+  _looplabel1.if:
+  add eax,1
+  sub ecx,1
+jmp _looplabel1
+_looplabel1.else:
+mov [r10],eax
 
 ret
 
@@ -236,7 +246,7 @@ ret
             float a = 4.6f;
 
             using cf = float(*)();
-            using cf2 = void(*)(int* a, int* b, int* c, int* d, int* e, int* g);
+            using cf2 = void(*)(int a, int b, int c, int d, int* e, int* g);
             using getaddrf = uint64_t * (*)();
 
             cf c = ((cf)assembly[s("main")]);
@@ -270,12 +280,12 @@ ret
 
                 for (int j = 0; j < icount; j+=6)
                 {
-                    f4( &tdata[j],
-                        &tdata[j+1],
-                        &tdata[j+2],
-                        &tdata[j+3],
-                        &tdata[j+4],
-                        &tdata[j+5]
+                    f4( tdata[j],
+                        tdata[j + 1],
+                        tdata[j + 2],
+                        tdata[j + 3],
+                        &tdata[j + 4],
+                        &tdata[j + 5]
                         );
                 }
                 tk.stop();
@@ -289,10 +299,10 @@ ret
                 tk.start();
                 for (int j = 0; j < icount; j += 6)
                 {
-                    f4(&tdata[j],
-                        &tdata[j + 1],
-                        &tdata[j + 2],
-                        &tdata[j + 3],
+                    c2(tdata[j],
+                        tdata[j + 1],
+                        tdata[j + 2],
+                        tdata[j + 3],
                         &tdata[j + 4],
                         &tdata[j + 5]
                     );
