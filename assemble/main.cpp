@@ -262,7 +262,7 @@ ret
 
             pdata = getaddr();
 
-            int icount = 6 * 1000000;
+            int icount = 6 * 10000;
             int* tdata = new int[icount];
             for (int i = 0; i < icount; ++i)
             {
@@ -274,7 +274,7 @@ ret
             uint64_t min = std::numeric_limits<uint64_t>::max();
 
             // 98700
-            for (int i = 0; i < 1000; ++i)
+            for (int i = 0; i < 10; ++i)
             {
                 tk.start();
 

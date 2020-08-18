@@ -1481,15 +1481,15 @@ namespace cgengine
                         .b = (uint8_t)((signature.types[0].is_modrm() && args[0].is_base_ex())
                                         || (args[0].is_reg_ex() && (signature.types[0] == argtype_t::regmem32 || signature.types[0] == argtype_t::regmem64 || signature.types[0] == argtype_t::mem))
                                         || (signature.types[1].is_modrm() && args[1].is_base_ex())
-                                        || (args[1].is_reg_ex() && (signature.types[1] == argtype_t::regmem32 || signature.types[1] == argtype_t::regmem64 || signature.types[0] == argtype_t::mem))
+                                        || (args[1].is_reg_ex() && (signature.types[1] == argtype_t::regmem32 || signature.types[1] == argtype_t::regmem64 || signature.types[1] == argtype_t::mem))
                                         || ((args[0].is_reg_ex() && (signature.types[0] == argtype_t::reg32 || signature.types[0] == argtype_t::reg64) && opcode.flags.has(opcode_flags_t::register_adjusted))) ? 1 : 0),
 
                         .x = (uint8_t)((signature.types[0].is_modrm() && args[0].is_index_ex()) || (signature.types[1].is_modrm() && args[1].is_index_ex()) ? 1 : 0),
 
                         .r = (uint8_t)(((signature.types[0].is_modrm() && args[0].is_index_ex())
-                                        || (args[0].is_reg_ex())
+                                        || (args[0].is_reg_ex() && (signature.types[0] == argtype_t::reg32 || signature.types[0] == argtype_t::reg64))
                                         || (signature.types[1].is_modrm() && args[1].is_index_ex())
-                                        || (args[1].is_reg_ex()))
+                                        || (args[1].is_reg_ex() && (signature.types[1] == argtype_t::reg32 || signature.types[1] == argtype_t::reg64)))
                                         && !((args[0].is_reg_ex() && (signature.types[0] == argtype_t::reg32 || signature.types[0] == argtype_t::reg64) && opcode.flags.has(opcode_flags_t::register_adjusted))) ? 1 : 0),
 
                         .w = (uint8_t)((signature.operand_size() == 32 ? 0 : 1) | (opcode.flags.has(opcode_flags_t::operand64size_override) ? 1 : 0))

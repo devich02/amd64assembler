@@ -20,8 +20,8 @@
   <Type Name="cgengine::assembler::rex_t">
     <Expand>
       <Item Name="operand">w == 1 ? 64 : 32</Item>
-      <Item Name="reg-ex">b == 1</Item>
-      <Item Name="rm/base-ex">r == 1</Item>
+      <Item Name="reg-ex">r == 1</Item>
+      <Item Name="rm/base-ex">b == 1</Item>
       <Item Name="index-ex">x == 1</Item>
     </Expand>
   </Type>
